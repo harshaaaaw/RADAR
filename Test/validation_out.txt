@@ -1,0 +1,54 @@
+﻿[2026-02-09 14:21:19] [root] [INFO] [MainProcess-408396] ================================================================================
+[2026-02-09 14:21:19] [root] [INFO] [MainProcess-408396] Logging system initialized - 2026-02-09T14:21:19.907510
+[2026-02-09 14:21:19] [root] [INFO] [MainProcess-408396] Log directory: D:\DocumentSearch\logs
+[2026-02-09 14:21:19] [root] [INFO] [MainProcess-408396] Log level: INFO
+[2026-02-09 14:21:19] [root] [INFO] [MainProcess-408396] ================================================================================
+.venv\Scripts\python.exe : 2026-02-09 14:22:46.512 Thread 'MainThread': 
+missing ScriptRunContext! This warning can be ignored when running in bare 
+mode.
+At line:1 char:1
++ .venv\Scripts\python.exe validate_dashboard_sync.py 2>&1 | Out-File - ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-02-09 14:2...g in bare mode. 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2026-02-09 14:22:46.601 No runtime found, using MemoryCacheStorageManager
+2026-02-09 14:22:46.603 No runtime found, using MemoryCacheStorageManager
+2026-02-09 14:22:46.603 No runtime found, using MemoryCacheStorageManager
+======================================================================
+DASHBOARD DATA SYNC VALIDATION
+======================================================================
+
+Metric                                    Redis Raw       Dashboard   Match?
+------------------------------------------------------------------------------
+discovered_total                            583,511         583,511     PASS
+discovery_completed                               0         197,811     FAIL
+extraction_pending                          234,945         234,542 WARN (▒small)
+extraction_processing                             0              10     FAIL
+extraction_completed                              0         344,998     FAIL
+indexing_pending                                  0               2 WARN (▒small)
+indexing_processing                               0          14,187     FAIL
+indexing_completed                                0         197,811     FAIL
+ocr_pending                                       0          15,789     FAIL
+ocr_processing                                    0               4 WARN (▒small)
+ocr_completed                                     0           5,984     FAIL
+completed_total                             198,979         198,979     PASS
+total_failures                                    0           1,589     FAIL
+
+
+Size Metric                                   Value   Status
+------------------------------------------------------------
+discovered_files                            583,511       OK
+discovered_size                           244.12 GB       OK
+in_pipeline_files                           251,097       OK
+in_pipeline_size                          105.15 GB       OK
+searchable_files                            309,752       OK
+searchable_size                           138.97 GB       OK
+failed_files                                  1,591       OK
+failed_size                                    0 MB       OK
+
+======================================================================
+RESULTS: 6 PASS, 3 WARN, 8 FAIL
+SOME METRICS DO NOT MATCH - REQUIRES INVESTIGATION
+======================================================================

@@ -1,0 +1,64 @@
+{
+  "discovery": {
+    "total": 336499,
+    "pending": 4,
+    "processing": 0,
+    "completed": 123078,
+    "failed": 511
+  },
+  "extraction": {
+    "tiny": {
+      "pending": 121717,
+      "processing": 4,
+      "completed": 198653,
+      "total": 320370
+    },
+    "small": {
+      "pending": 3320,
+      "processing": 6,
+      "completed": 7023,
+      "total": 10343
+    },
+    "medium": {
+      "pending": 488,
+      "processing": 2,
+      "completed": 1029,
+      "total": 1517
+    },
+    "large": {
+      "pending": 32,
+      "processing": 1,
+      "completed": 141,
+      "total": 173
+    }
+  },
+  "extraction_total": {
+    "total": 332416,
+    "pending": 125557,
+    "processing": 13,
+    "completed": 206846
+  },
+  "indexing": {
+    "total": 133808,
+    "pending": 244,
+    "processing": 10486,
+    "completed": 123078
+  },
+  "ocr": {
+    "total": 11793,
+    "pending": 9158,
+    "processing": 3,
+    "completed": 2632
+  },
+  "completed": {
+    "total_completed": 123463,
+    "total": 123463,
+    "duplicates": 0,
+    "avg_extraction_ms": 33,
+    "avg_indexing_ms": 2
+  },
+  "failures": {
+    "ocr_error": 520
+  },
+  "total_failures": 511
+}

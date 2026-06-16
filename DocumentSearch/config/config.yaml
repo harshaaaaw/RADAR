@@ -1,0 +1,647 @@
+# Enterprise Document Search System - Production Configuration
+# Version: 1.1.0
+# Date: 2026-02-03
+
+# ============================================================================
+# REDIS CONFIGURATION (replaces SQLite for better concurrency)
+# ============================================================================
+redis:
+  # Redis connection URL
+  url: "redis://localhost:6379/0"
+  # Connection pool size
+  max_connections: 50
+  # Timeout for operations (seconds)
+  timeout: 30
+
+# ============================================================================
+# NLP CONFIGURATION (SpaCy text correction)
+# ============================================================================
+nlp:
+  # Enable NLP text corrections
+  enabled: false  # DISABLED: Multiple workers loading SpaCy model causes memory issues
+  # Path to SpaCy model (use model name for pip-installed models)
+  model_path: "en_core_web_md"
+  # Maximum text length to process (chars)
+  max_text_length: 100000
+
+# ============================================================================
+# SYSTEM PATHS
+# ============================================================================
+paths:
+  # Source data (read-only)
+  source_drive: "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301"
+  
+  # Working directories on D drive
+  working_root: "D:\\DocumentSearch"
+  queue_db: "D:\\DocumentSearch\\queue"
+  temp_dir: "D:\\DocumentSearch\\temp"
+  logs_dir: "D:\\DocumentSearch\\logs"
+  checkpoints_dir: "D:\\DocumentSearch\\checkpoints"
+  metrics_dir: "D:\\DocumentSearch\\metrics"
+  backup_dir: "D:\\DocumentSearch\\backup"
+  
+  # Application root
+  app_root: "C:\\DocumentSearch"
+
+# ============================================================================
+# DISCOVERY CONFIGURATION
+# ============================================================================
+discovery:
+  # Number of parallel discovery workers
+  num_workers: 4
+  
+  # Worker distribution strategy
+  # AUTO: Workers automatically discover and distribute folders dynamically
+  # MANUAL: Use custom partitions defined below
+  partition_strategy: "AUTO"
+  
+  # Custom partitions (only used if partition_strategy is MANUAL)
+  # Leave empty for automatic discovery and load balancing
+  custom_partitions: []
+  # Example manual configuration:
+  # custom_partitions:
+  #   - folders: ["HighPriorityFolder1", "HighPriorityFolder2"]
+  #     worker_id: 1
+  #     priority: 1
+  #   - folders: ["LowPriorityArchive"]
+  #     worker_id: 2
+  #     priority: 10
+  
+  # Files to discover per batch before queue insertion
+  batch_size: 100
+  
+  # Target discovery rate (files/second)
+  target_rate: 30000
+  
+  # Exclude patterns (system folders and junk)
+  exclude_patterns:
+    - "$RECYCLE.BIN"
+    - "System Volume Information"
+    - "Windows"
+    - "Program Files"
+    - "ProgramData"
+    - "Recovery"
+    - "*.tmp"
+    - "*.temp"
+    - "~$*"
+    - "Thumbs.db"
+    - "desktop.ini"
+  
+  # File filtering strategy
+  filter_by_extension: false  # If false, process ALL files and let Tika handle them
+  
+  # Excluded extensions (only used if filter_by_extension is true)
+  # Exclude known binaries/executables that Tika can't process
+  excluded_extensions:
+    - ".exe"
+    - ".dll"
+    - ".sys"
+    - ".drv"
+    - ".bin"
+    - ".dat"
+    - ".db"
+    - ".lock"
+    - ".log"  # Optional: raw log files
+  
+  # Optional: Include ONLY these extensions (only used if filter_by_extension is true and this list is not empty)
+  # Leave empty to process everything except excluded_extensions
+  included_extensions: []  # Empty means process all (except excluded)
+  
+  # Priority folder patterns (case-insensitive substring matching)
+  # Lower priority number = higher priority (processed first)
+  # Configure based on your organization's needs
+  priority_folders: []
+  # Example:
+  # priority_folders:
+  #   - pattern: "important"
+  #     priority: 1
+  #   - pattern: "urgent"
+  #     priority: 1
+  #   - pattern: "archive"
+  #     priority: 10
+  
+  # Size-based routing thresholds (bytes)
+  size_categories:
+    tiny: 1048576        # < 1 MB
+    small: 10485760      # 1-10 MB
+    medium: 52428800     # 10-50 MB
+    large: 9999999999    # > 50 MB
+
+# ============================================================================
+# EXTRACTION CONFIGURATION
+# ============================================================================
+extraction:
+  # Total extraction workers (reduced for local stability)
+  total_workers: 24  # 8+8+4+4 from pools below
+  
+  # Worker pool distribution - balanced to reduce Tika contention
+  pools:
+    fast_track:
+      num_workers: 8  # High volume small files
+      queue_name: "tiny_queue"
+      tika_ports: [9998, 9999, 10002, 10003]  # Load balanced across 4 instances
+      target_time_seconds: 10
+      
+    standard_track:
+      num_workers: 8  # Standard business documents
+      queue_name: "small_queue"
+      tika_ports: [10000, 10004]  # Dedicated 2 instances
+      target_time_seconds: 60
+      
+    heavy_track:
+      num_workers: 4  # Complex documents
+      queue_name: "medium_queue"
+      tika_ports: [10005]  # Port 10001 unavailable (used by agentid-service)
+      target_time_seconds: 180
+      
+    extreme_track:
+      num_workers: 4  # Very large files and archives
+      queue_name: "large_queue"
+      tika_ports: [9998, 9999, 10000, 10002]  # Port 10001 unavailable
+      target_time_seconds: 600
+  
+  # Tika server configuration - 8 INSTANCES FOR MAXIMUM THROUGHPUT
+  tika:
+    instances:
+      - host: "localhost"
+        port: 9998
+        memory_mb: 2048
+        temp_dir: "D:\\DocumentSearch\\temp\\tika1"
+      - host: "localhost"
+        port: 9999
+        memory_mb: 2048
+        temp_dir: "D:\\DocumentSearch\\temp\\tika2"
+      - host: "localhost"
+        port: 10000
+        memory_mb: 2048
+        temp_dir: "D:\\DocumentSearch\\temp\\tika3"
+      # Port 10001 DISABLED - blocked by agentid-service
+      # - host: "localhost"
+      #   port: 10001
+      #   memory_mb: 2048
+      #   temp_dir: "D:\\DocumentSearch\\temp\\tika4"
+      - host: "localhost"
+        port: 10002
+        memory_mb: 2048
+        temp_dir: "D:\\DocumentSearch\\temp\\tika5"
+      - host: "localhost"
+        port: 10003
+        memory_mb: 2048
+        temp_dir: "D:\\DocumentSearch\\temp\\tika6"
+      - host: "localhost"
+        port: 10004
+        memory_mb: 2048
+        temp_dir: "D:\\DocumentSearch\\temp\\tika7"
+      - host: "localhost"
+        port: 10005
+        memory_mb: 2048
+        temp_dir: "D:\\DocumentSearch\\temp\\tika8"
+    
+    timeout_seconds: 60
+    max_retries: 2
+    retry_backoff_seconds: [1, 2]
+    connection_pool_size: 4
+  
+  # OCR detection thresholds
+  ocr_detection:
+    min_text_length: 200  # If extracted text < 200 chars and has pages, likely scanned
+    detect_by_mime_type: true  # Use Tika's MIME type detection instead of extensions
+    image_mime_prefixes: ["image/"]  # Any MIME starting with image/
+  
+  # Content normalization for duplicate detection
+  content_normalization:
+    lowercase: true
+    strip_whitespace: true
+    remove_timestamps: true
+    remove_page_numbers: true
+  
+  # Worker lifecycle
+  restart_after_files: 500  # Restart worker after processing this many files
+
+# ============================================================================
+# INDEXING CONFIGURATION
+# ============================================================================
+indexing:
+  # Number of parallel indexing workers
+  num_workers: 24
+  
+  # OpenSearch connection
+  opensearch:
+    hosts:
+      - "http://localhost:9200"  # Using HTTP (change to https if SSL enabled)
+    
+    # Authentication (set in environment variables for security)
+    # OPENSEARCH_USER and OPENSEARCH_PASSWORD
+    use_ssl: false  # Set to true when using HTTPS
+    verify_certs: false  # Set to true in production with proper certs
+    
+    # Index configuration
+    index_name: "enterprise_documents"
+    
+    # Bulk indexing - Micro-batch optimization for fast searchability
+    initial_batch_size: 500  # Larger batches for throughput
+    min_batch_size: 200      # Maintain minimum batch size
+    max_batch_size: 2000     # Allow bigger batches when OS is fast
+    batch_adjustment_step: 200  # Adapt in larger steps
+    
+    # Flush timeout - force flush after N seconds even if batch not full
+    flush_timeout_seconds: 5   # Flush faster if batches aren't filling
+    
+    # Performance tuning
+    target_batch_time_seconds: 2.0
+    fast_batch_threshold_seconds: 1.5
+    slow_batch_threshold_seconds: 3.0
+    
+    timeout_seconds: 30
+    max_retries: 3
+    retry_backoff_seconds: [1, 2, 4]
+    
+    connection_pool_size: 4
+    
+    # Refresh interval (set to 30s during bulk indexing, 1s after)
+    bulk_refresh_interval: "30s"
+    normal_refresh_interval: "1s"
+  
+  # Index mapping configuration
+  mapping:
+    shards: 5
+    replicas: 1
+    
+    # Field boosting for search relevance
+    field_boost:
+      file_name: 5.0
+      main_content: 2.0
+      embedded_content: 1.0
+      ocr_content: 0.8
+    
+    # Analyzers
+    default_analyzer: "english"
+    ocr_analyzer: "standard"
+
+# ============================================================================
+# OCR CONFIGURATION
+# ============================================================================
+ocr:
+  # Number of parallel OCR workers (optimized for speed)
+  initial_workers: 28  # During main indexing (higher throughput)
+  post_indexing_workers: 44  # After indexing complete (higher backlog drain)
+  
+  # Performance limits
+  max_pages_per_pdf: 0  # Limit OCR to first N pages of PDFs (0 = unlimited)
+  
+  # Poppler (pdftoppm/pdfinfo) location for PDF OCR. Leave empty to rely on PATH.
+  poppler_path: "C:\\poppler\\poppler-24.02.0\\Library\\bin"
+  
+  # Tesseract configuration
+  tesseract:
+    command: "C:\\Users\\hp212560601\\AppData\\Local\\Programs\\Tesseract-OCR\\tesseract.exe"
+    datapath: "C:\\Users\\hp212560601\\AppData\\Local\\Programs\\Tesseract-OCR\\tessdata"
+    languages: ["eng"]  # Add any installed language codes: spa, fra, deu, chi_sim, etc.
+    engine_mode: "LSTM"  # Long Short-Term Memory neural network
+    page_segmentation_mode: "AUTO"
+    timeout_seconds: 120  # 2 minutes max per page (faster timeout)
+  
+  # Image preprocessing (balanced for accuracy and speed)
+  preprocessing:
+    convert_to_grayscale: true
+    apply_noise_reduction: true    # Keep for accuracy
+    enhance_contrast: true         # Improve text clarity
+    correct_skew: true             # Keep for accuracy on rotated scans
+    binarize: true
+    target_dpi: 300  # Keep 300 DPI for best OCR accuracy
+    
+    # Preprocessing libraries
+    use_opencv: true
+    use_pillow: true
+  
+  # Quality thresholds
+  quality:
+    min_confidence: 25  # Below this, flag for review
+    good_confidence: 70
+    excellent_confidence: 90
+  
+  # Priority queue configuration (inherits from discovery.priority_folders)
+  # Or define OCR-specific priorities here
+  priorities: []
+  # Example:
+  # priorities:
+  #   - pattern: "scanned_contracts"
+  #     priority: 1
+  
+  # Multipage handling (optimized for speed)
+  multipage:
+    enable_parallel_pages: true
+    max_parallel_pages: 12  # Reduce contention and improve stability at higher DPI
+    incremental_update: true  # Update document as pages complete
+  
+  # Batch update to OpenSearch
+  update_batch_size: 100
+
+# ============================================================================
+# ORCHESTRATOR CONFIGURATION
+# ============================================================================
+orchestrator:
+  # Worker health monitoring
+  heartbeat_interval_seconds: 30
+  heartbeat_timeout_seconds: 90
+  
+  # Service health checks
+  service_check_interval_seconds: 60
+  
+  # Resource monitoring
+  resource_check_interval_seconds: 60
+  
+  # CPU thresholds
+  cpu:
+    high_threshold_percent: 95
+    low_threshold_percent: 60
+    sustained_duration_seconds: 300  # 5 minutes
+    throttle_reduction_percent: 20
+    scale_up_percent: 10
+  
+  # Memory thresholds (for 256GB system)
+  memory:
+    warning_threshold_gb: 225  # ~90%
+    critical_threshold_gb: 240  # ~95%
+    emergency_threshold_gb: 245  # ~97%
+  
+  # Disk space thresholds (D drive)
+  disk:
+    warning_threshold_gb: 200
+    critical_threshold_gb: 100
+    emergency_threshold_gb: 50
+  
+  # Checkpoint configuration
+  checkpoint:
+    interval_seconds: 300  # 5 minutes
+    retention_count: 10
+    auto_save_on_shutdown: true
+  
+  # Graceful shutdown
+  shutdown:
+    grace_period_seconds: 60
+    force_after_grace: true
+  
+  # Circuit breaker
+  circuit_breaker:
+    failure_threshold: 5
+    timeout_seconds: 60
+    half_open_attempts: 3
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+logging:
+  # Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  default_level: "INFO"
+  
+  # Component-specific levels
+  components:
+    discovery: "INFO"
+    extraction: "INFO"
+    indexing: "INFO"
+    ocr: "INFO"
+    orchestrator: "INFO"
+    api: "INFO"
+  
+  # Log rotation
+  rotation:
+    max_bytes: 104857600  # 100 MB
+    backup_count: 30  # 30 days retention
+  
+  # Log format
+  format: "[%(asctime)s] [%(name)s] [%(levelname)s] [%(processName)s-%(process)d] %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  
+  # Structured logging
+  use_json: false  # Set to true for log aggregation systems
+
+# ============================================================================
+# ALERTING CONFIGURATION
+# ============================================================================
+alerting:
+  # Email configuration (set credentials in environment variables)
+  email:
+    enabled: true
+    smtp_host: "smtp.office365.com"
+    smtp_port: 587
+    use_tls: true
+    # Set SMTP_USER and SMTP_PASSWORD in environment
+    
+    from_address: ""  # Set in environment: ALERT_FROM_EMAIL
+    to_addresses: []  # Set in environment: ALERT_TO_EMAILS (comma-separated)
+    # Example: ALERT_TO_EMAILS="admin@example.com,ops@example.com"
+  
+  # Alert thresholds
+  critical_alerts:
+    - type: "processing_stopped"
+      threshold_seconds: 600  # No progress for 10 minutes
+      
+    - type: "opensearch_unhealthy"
+      threshold: "red"
+      
+    - type: "disk_space_critical"
+      threshold_gb: 50
+      
+    - type: "memory_critical"
+      threshold_percent: 97
+      
+    - type: "error_rate_high"
+      threshold_percent: 5
+      
+    - type: "worker_crashes"
+      threshold_count: 10
+      threshold_period_seconds: 3600  # 10 crashes per hour
+  
+  warning_alerts:
+    - type: "processing_slow"
+      threshold_percent: 50  # 50% of target rate
+      
+    - type: "opensearch_degraded"
+      threshold: "yellow"
+      
+    - type: "disk_space_low"
+      threshold_gb: 100
+      
+    - type: "error_rate_elevated"
+      threshold_percent: 1
+  
+  # Notification schedule
+  progress_updates:
+    interval_hours: 6
+    
+  daily_summary:
+    enabled: true
+    time: "08:00"  # 8 AM daily
+  
+  completion_notification:
+    enabled: true
+
+# ============================================================================
+# API CONFIGURATION
+# ============================================================================
+api:
+  # Server configuration
+  host: "0.0.0.0"
+  port: 8080
+  workers: 4
+  
+  # Security
+  require_auth: false  # Set to true and configure API_TOKEN for production
+  cors_enabled: true
+  allowed_origins:
+    - "http://localhost:*"
+    # Add production domains as needed:
+    # - "https://yourdomain.com"
+  
+  # Search configuration
+  search:
+    default_page_size: 20
+    max_page_size: 100
+    highlight_snippet_size: 150
+    max_highlights: 3
+    
+    # Default field weights
+    default_fields:
+      - "file_name^5"
+      - "main_content^2"
+      - "embedded_content"
+      - "ocr_content^0.8"
+  
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 100
+
+# ============================================================================
+# DASHBOARD CONFIGURATION
+# ============================================================================
+dashboard:
+  # Auto-refresh interval
+  refresh_interval_seconds: 5
+  
+  # Metrics history retention
+  history_hours: 24
+  
+  # Display configuration
+  show_worker_details: true
+  show_error_details: true
+  show_resource_graphs: true
+
+# ============================================================================
+# OPERATIONAL MODES
+# ============================================================================
+modes:
+  # Default mode on startup
+  default: "full"
+  
+  # Available modes
+  available:
+    - "full"         # Index everything from scratch
+    - "resume"       # Continue from last checkpoint
+    - "incremental"  # Process only new/changed files
+  
+  # Incremental mode configuration
+  incremental:
+    check_modification_time: true
+    check_file_hash: true
+    rescan_interval_hours: 24
+
+# ============================================================================
+# PERFORMANCE TARGETS
+# ============================================================================
+performance:
+  # Expected throughput rates
+  targets:
+    discovery_files_per_second: 30000
+    extraction_files_per_second: 180  # Average across all pools
+    indexing_docs_per_second: 7000
+    ocr_pages_per_hour: 600  # With 10 workers
+  
+  # Quality metrics
+  quality:
+    target_extraction_success_rate: 0.99
+    target_indexing_success_rate: 0.999
+    target_ocr_confidence: 0.85
+
+# ============================================================================
+# DEDUPLICATION CONFIGURATION
+# ============================================================================
+deduplication:
+  # Bloom filter configuration
+  bloom_filter:
+    expected_elements: 5000000  # 5 million files
+    false_positive_rate: 0.01
+    
+  # File-level deduplication
+  file_level:
+    enabled: true
+    hash_algorithm: "sha256"
+    
+  # Content-level deduplication
+  content_level:
+    enabled: true
+    normalization:
+      lowercase: true
+      remove_whitespace: true
+      remove_punctuation: false
+    similarity_threshold: 1.0  # Exact match only
+  
+  # Duplicate handling
+  duplicate_handling:
+    store_full_content: false  # Only for primary
+    link_duplicates: true
+    track_duplicate_paths: true
+    max_duplicate_paths: 100
+
+# ============================================================================
+# BACKUP AND RECOVERY
+# ============================================================================
+backup:
+  # Configuration backup
+  config_backup:
+    enabled: true
+    interval_hours: 24
+    retention_days: 30
+  
+  # Queue backup
+  queue_backup:
+    enabled: true
+    before_major_operations: true
+  
+  # Checkpoint backup
+  checkpoint_backup:
+    enabled: true
+    retention_count: 20
+
+# ============================================================================
+# TESTING CONFIGURATION
+# ============================================================================
+testing:
+  # Test mode flag
+  test_mode: false
+  
+  # Test data location
+  test_data_path: "D:\\DocumentSearch\\test_data"
+  
+  # Sample size for validation
+  sample_size: 1000
+  
+  # Performance baseline
+  baseline:
+    extraction_time_per_mb: 0.5  # seconds
+    indexing_time_per_1000_docs: 2.0  # seconds
+    ocr_time_per_page: 45  # seconds
+
+# ============================================================================
+# ENVIRONMENT VARIABLES (Security-sensitive values)
+# ============================================================================
+# The following should be set as environment variables:
+# - OPENSEARCH_USER: OpenSearch username
+# - OPENSEARCH_PASSWORD: OpenSearch password
+# - SMTP_USER: SMTP authentication username
+# - SMTP_PASSWORD: SMTP authentication password
+# - ALERT_FROM_EMAIL: Email address for sending alerts (replaces alerting.email.from_address)
+# - ALERT_TO_EMAILS: Comma-separated list of alert recipients (replaces alerting.email.to_addresses)
+#   Example: ALERT_TO_EMAILS="admin@example.com,ops@example.com"
+# - API_TOKEN: API authentication token

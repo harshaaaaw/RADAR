@@ -1,0 +1,1570 @@
+{
+  "total_tests": 30,
+  "passed": 30,
+  "failed": 0,
+  "pass_rate": 100.0,
+  "avg_search_time_ms": 245.02264658610025,
+  "results": [
+    {
+      "test_name": "basic_pdf",
+      "query": "pdf",
+      "query_type": "keyword",
+      "description": "Search for common file type keyword",
+      "passed": true,
+      "total_hits": 130,
+      "expected_min": 1,
+      "search_time_ms": 17.005205154418945,
+      "top_results": [
+        {
+          "score": 53.762524,
+          "file_name": "030112_Summary_{B0557F91-0000-CDD7-854A-4F6A29235CB5}.pdf",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\030112_Summary_{B0557F91-0000-CDD7-854A-4F6A29235CB5}.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "030112_Summary_{B0557F91-0000-CDD7-854A-4F6A29235CB5}.**pdf**"
+            ]
+          }
+        },
+        {
+          "score": 53.762524,
+          "file_name": "030112_Statement_{A0557F91-3100-CD47-B871-4D3FB6228432}.pdf",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\030112_Statement_{A0557F91-3100-CD47-B871-4D3FB6228432}.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "030112_Statement_{A0557F91-3100-CD47-B871-4D3FB6228432}.**pdf**"
+            ]
+          }
+        },
+        {
+          "score": 53.762524,
+          "file_name": "040512_Summary_{70587F91-1700-C75D-BE38-238A1262A3AC}.pdf",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\040512_Summary_{70587F91-1700-C75D-BE38-238A1262A3AC}.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "040512_Summary_{70587F91-1700-C75D-BE38-238A1262A3AC}.**pdf**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "basic_document",
+      "query": "document",
+      "query_type": "keyword",
+      "description": "Search for common document term",
+      "passed": true,
+      "total_hits": 1162,
+      "expected_min": 0,
+      "search_time_ms": 84.03229713439941,
+      "top_results": [
+        {
+          "score": 4.7191815,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 94.32010427137976,
+          "highlights": {
+            "ocr_content": [
+              "(c) **Documentation** Fee.",
+              "(c) Loan **Documents**."
+            ],
+            "main_content": [
+              "(c) **Documentation** Fee.",
+              "(c) Loan **Documents**."
+            ]
+          }
+        },
+        {
+          "score": 4.680416,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 95.17834489480406,
+          "highlights": {
+            "ocr_content": [
+              "and the\nindividuals signing such other Loan **Documents** are duly authorized to do so; (iii) no permits",
+              "Loan **Documents** were not duly authorized, executed, or delivered on behalf of any Credit Party.\n\n5."
+            ],
+            "main_content": [
+              "and the\nindividuals signing such other Loan **Documents** are duly authorized to do so; (iii) no permits",
+              "Loan **Documents** were not duly authorized, executed, or delivered on behalf of any Credit Party.\n\n5."
+            ]
+          }
+        },
+        {
+          "score": 4.5042596,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 94.90900619965274,
+          "highlights": {
+            "ocr_content": [
+              "paid at the Default Rate, all as\ncontemplated in this Deed of Trust and the other Loan **Documents**, all",
+              ".\n\n6.9 Relation to Other Security **Documents**."
+            ],
+            "main_content": [
+              "paid at the Default Rate, all as\ncontemplated in this Deed of Trust and the other Loan **Documents**, all",
+              ".\n\n6.9 Relation to Other Security **Documents**."
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "basic_contract",
+      "query": "contract",
+      "query_type": "keyword",
+      "description": "Search for business term: contract",
+      "passed": true,
+      "total_hits": 762,
+      "expected_min": 0,
+      "search_time_ms": 41.11790657043457,
+      "top_results": [],
+      "error": null
+    },
+    {
+      "test_name": "basic_agreement",
+      "query": "agreement",
+      "query_type": "keyword",
+      "description": "Search for business term: agreement",
+      "passed": true,
+      "total_hits": 762,
+      "expected_min": 0,
+      "search_time_ms": 39.029598236083984,
+      "top_results": [],
+      "error": null
+    },
+    {
+      "test_name": "phrase_loan_agreement",
+      "query": "loan agreement",
+      "query_type": "phrase",
+      "description": "Phrase search for 'loan agreement'",
+      "passed": true,
+      "total_hits": 70,
+      "expected_min": 0,
+      "search_time_ms": 49.65019226074219,
+      "top_results": [
+        {
+          "score": 56.772198,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 93.43395607297289,
+          "highlights": {}
+        },
+        {
+          "score": 56.17984,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 92.86477009834644,
+          "highlights": {}
+        },
+        {
+          "score": 55.891785,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 94.51186522689262,
+          "highlights": {}
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "phrase_tax_service",
+      "query": "tax service",
+      "query_type": "phrase",
+      "description": "Phrase search for 'tax service'",
+      "passed": true,
+      "total_hits": 33,
+      "expected_min": 0,
+      "search_time_ms": 278.8128852844238,
+      "top_results": [
+        {
+          "score": 28.402178,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 61.39008303420537,
+          "highlights": {}
+        },
+        {
+          "score": 28.134134,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 86.31216463683182,
+          "highlights": {}
+        },
+        {
+          "score": 27.816013,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 93.65054595886986,
+          "highlights": {}
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "fuzzy_agreemnt",
+      "query": "agreemnt",
+      "query_type": "fuzzy",
+      "description": "Fuzzy search with typo: 'agreemnt'",
+      "passed": true,
+      "total_hits": 704,
+      "expected_min": 0,
+      "search_time_ms": 242.12050437927246,
+      "top_results": [
+        {
+          "score": 14.969471,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 94.8518678592475,
+          "highlights": {}
+        },
+        {
+          "score": 12.609426,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 89.42775222114905,
+          "highlights": {}
+        },
+        {
+          "score": 11.483019,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 93.0229309064678,
+          "highlights": {}
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "fuzzy_docment",
+      "query": "docment",
+      "query_type": "fuzzy",
+      "description": "Fuzzy search with typo: 'docment'",
+      "passed": true,
+      "total_hits": 1166,
+      "expected_min": 0,
+      "search_time_ms": 31.962871551513672,
+      "top_results": [
+        {
+          "score": 5.6015396,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 88.23985008145219,
+          "highlights": {}
+        },
+        {
+          "score": 5.4063416,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 88.57580824579215,
+          "highlights": {}
+        },
+        {
+          "score": 5.312743,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 87.70570900330755,
+          "highlights": {}
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "ocr_zero_vs_o",
+      "query": "2013",
+      "query_type": "keyword",
+      "description": "OCR numeric search: year 2013",
+      "passed": true,
+      "total_hits": 441,
+      "expected_min": 0,
+      "search_time_ms": 56.99896812438965,
+      "top_results": [
+        {
+          "score": 56.71775,
+          "file_name": "122001002-CTAUSD-Jan-2013_Reviewed_{20BC5187-0700-C019-B9AA-E035E49665B3}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\122001002-CTAUSD-Jan-2013_Reviewed_{20BC5187-0700-C019-B9AA-E035E49665B3}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "122001002-CTAUSD-Jan-**2013_Reviewed_**{20BC5187-0700-C019-B9AA-E035E49665B3}.xlsx"
+            ]
+          }
+        },
+        {
+          "score": 56.71775,
+          "file_name": "122001002-CTAUSD-Jul-2013_Reviewed_{F0E05187-0200-C662-AF9C-518D018D156C}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\122001002-CTAUSD-Jul-2013_Reviewed_{F0E05187-0200-C662-AF9C-518D018D156C}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "122001002-CTAUSD-Jul-**2013_Reviewed_**{F0E05187-0200-C662-AF9C-518D018D156C}.xlsx"
+            ]
+          }
+        },
+        {
+          "score": 56.71775,
+          "file_name": "122001002-CTAUSD-Mar-2013_Reviewed_{40C15187-0900-CF0C-9028-11D7C3F5A195}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\122001002-CTAUSD-Mar-2013_Reviewed_{40C15187-0900-CF0C-9028-11D7C3F5A195}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "122001002-CTAUSD-Mar-**2013_Reviewed_**{40C15187-0900-CF0C-9028-11D7C3F5A195}.xlsx"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "partial_title",
+      "query": "TITLE",
+      "query_type": "keyword",
+      "description": "Search for partial term: TITLE",
+      "passed": true,
+      "total_hits": 270,
+      "expected_min": 0,
+      "search_time_ms": 70.40119171142578,
+      "top_results": [
+        {
+          "score": 13.933329,
+          "file_name": "066043-VXXAAB-Sep-13-Reviewed_{30DA5187-0100-C2A2-B6D3-E41747FF9205}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066043-VXXAAB-Sep-13-Reviewed_{30DA5187-0100-C2A2-B6D3-E41747FF9205}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "This type of securitization includes sale of **titled** assets.",
+              "Such type of assets should be sold after changing their **title**."
+            ]
+          }
+        },
+        {
+          "score": 13.878033,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 88.29884638732793,
+          "highlights": {
+            "ocr_content": [
+              "Denice A Pectol\n\nSenior Commercial Escrow Officer\n\nFidelity National **Title** - National **Title** Services",
+              "**Title** Insurance Company\n\nGE CC Escrow No."
+            ],
+            "main_content": [
+              "Denice A Pectol\n\nSenior Commercial Escrow Officer\n\nFidelity National **Title** - National **Title** Services",
+              "**Title** Insurance Company\n\nGE CC Escrow No."
+            ]
+          }
+        },
+        {
+          "score": 13.7447405,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 82.90116472669787,
+          "highlights": {
+            "ocr_content": [
+              "Fidelity Natlonat **Title** insurance Company **title** commitment No.",
+              "Company **title** commitment No."
+            ],
+            "main_content": [
+              "Fidelity Natlonat **Title** insurance Company **title** commitment No.",
+              "Company **title** commitment No."
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "partial_survey",
+      "query": "SURVEY",
+      "query_type": "keyword",
+      "description": "Search for partial term: SURVEY",
+      "passed": true,
+      "total_hits": 107,
+      "expected_min": 0,
+      "search_time_ms": 24.64914321899414,
+      "top_results": [
+        {
+          "score": 18.781145,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 82.90116472669787,
+          "highlights": {
+            "ocr_content": [
+              ", information and belief, except as otherwise shown\non the **Survey** Map:\n\nfa} This **Survey** Map correctly",
+              "SMITH **SURVEY**, ABSTRACT NO. 2OO\nWILLIAM BLEVINS **SURVEY**, ABSTRACT NO. 9\nCITY_OF ROCKWALL, ROCKWALL COUNTY"
+            ],
+            "main_content": [
+              ", information and belief, except as otherwise shown\non the **Survey** Map:\n\nfa} This **Survey** Map correctly",
+              "SMITH **SURVEY**, ABSTRACT NO. 2OO\nWILLIAM BLEVINS **SURVEY**, ABSTRACT NO. 9\nCITY_OF ROCKWALL, ROCKWALL COUNTY"
+            ]
+          }
+        },
+        {
+          "score": 18.674793,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 83.46506846209822,
+          "highlights": {
+            "ocr_content": [
+              "--- Page I ---\n\"ALTA/ACSM LAND TITLE **SURVEY**\"\n\nA TRACT OF LAND CONTAINING O.9O48 OF AN ACRE (39,4I3 SQUARE",
+              ", infarsaasion and belief, eeept as othervine\nshown on the **Survey** Map:\n\n{a) This **Survey** Map correctly"
+            ],
+            "main_content": [
+              "--- Page I ---\n\"ALTA/ACSM LAND TITLE **SURVEY**\"\n\nA TRACT OF LAND CONTAINING O.9O48 OF AN ACRE (39,4I3 SQUARE",
+              ", infarsaasion and belief, eeept as othervine\nshown on the **Survey** Map:\n\n{a) This **Survey** Map correctly"
+            ]
+          }
+        },
+        {
+          "score": 18.588215,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 88.29884638732793,
+          "highlights": {
+            "ocr_content": [
+              "County, Texas, and as shown on\n**survey** dated November I4, 2OO7, last revised November 2I, 2OO7, by Robert",
+              ", Abstract No. 2OO, and the\nWilliam Blevins **survey**, Abstract No. 9, City of Rockwall, Rockwall County"
+            ],
+            "main_content": [
+              "County, Texas, and as shown on\n**survey** dated November I4, 2OO7, last revised November 2I, 2OO7, by Robert",
+              ", Abstract No. 2OO, and the\nWilliam Blevins **survey**, Abstract No. 9, City of Rockwall, Rockwall County"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_exact_1",
+      "query": "066043_C8C_VIC_C3C_M9C_Oct-13_{80C75187-0700-C04D-8B1E-E9F0EDC60A46}.xlsx",
+      "query_type": "keyword",
+      "description": "Search for exact filename: 066043_C8C_VIC_C3C_M9C_Oct-13_{80C75187-0700-C04D-...",
+      "passed": true,
+      "total_hits": 1,
+      "expected_min": 1,
+      "search_time_ms": 87.87345886230469,
+      "top_results": [],
+      "error": null
+    },
+    {
+      "test_name": "filename_partial_1",
+      "query": "xlsx",
+      "query_type": "keyword",
+      "description": "Search for keyword from filename: xlsx",
+      "passed": true,
+      "total_hits": 957,
+      "expected_min": 1,
+      "search_time_ms": 884.0487003326416,
+      "top_results": [
+        {
+          "score": 19.910105,
+          "file_name": "030001_BNSC8C_{50F15187-0600-C32B-9E2F-C2328B980B15}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\030001_BNSC8C_{50F15187-0600-C32B-9E2F-C2328B980B15}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "O3OOOI_BNSC8C/O3OOOI C8C_M9C_BPC VIC Jul-I3.**xlsx**\n\n\nO3OOOI_BNSC8C/O3OOOI_C8U_VIU_C3U_M9U_BPU_Jul_I3.**xlsx**"
+            ]
+          }
+        },
+        {
+          "score": 18.731615,
+          "file_name": "1636041##ISSUE-101155##Omnibus_Supporting_Documents_{96027BE7-15EF-4181-909D-31601DBDBF9A}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\1636041##ISSUE-101155##Omnibus_Supporting_Documents_{96027BE7-15EF-4181-909D-31601DBDBF9A}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "GECC_Global_Actimize_Steering_Committee_Notes_8.I.I2.**xlsx**\n\n\nOmnibus Supporting Documents/2.IO.iii.",
+              "GECC_Global_Actimize_Steering_Committee_Notes_9.5.I2(I).**xlsx**\n\n\nOmnibus Supporting Documents/2.IO.iv GECB_AML_Phase_I_Risk_Assessment.**xlsx**"
+            ]
+          }
+        },
+        {
+          "score": 17.405462,
+          "file_name": "1300040011XX_C9CAAA_Sep-13_{40065287-0100-C8B9-BD5D-129CA1E280E5}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\1300040011XX_C9CAAA_Sep-13_{40065287-0100-C8B9-BD5D-129CA1E280E5}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "I3OOO4OOIIXX_C9CAAA_Sep-I3.**xlsx**\n\n\nI3OOO4OOIO43_C9CAAA SEP-I3.**xlsx**\n\n\nI3OOO4OOIO92_C9CAAA_Sep-I3.**xlsx**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_exact_2",
+      "query": "066175-CTIUSD-EF Indirect-Apr-13 - NU Reviewed_{A0E95187-0100-C018-AE42-C9E46488F529}.xlsx",
+      "query_type": "keyword",
+      "description": "Search for exact filename: 066175-CTIUSD-EF Indirect-Apr-13 - NU Reviewed_{A0...",
+      "passed": true,
+      "total_hits": 7,
+      "expected_min": 1,
+      "search_time_ms": 900.4054069519043,
+      "top_results": [
+        {
+          "score": 499.5281,
+          "file_name": "066175-CTIUSD-EF Indirect-Apr-13 - NU Reviewed_{A0E95187-0100-C018-AE42-C9E46488F529}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066175-CTIUSD-EF Indirect-Apr-13 - NU Reviewed_{A0E95187-0100-C018-AE42-C9E46488F529}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**066175**-**CTIUSD**-EF **Indirect**-**Apr**-13 - NU **Reviewed_**{**A0E95187**-**0100**-**C018**-**AE42**-**C9E46488F529**}.**xlsx**"
+            ],
+            "main_content": [
+              "Business:\t**EF** **Indirect**\tFunctional currency of the account being reconciled\tUSD\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tERROR:",
+              "Finance/USEF%2OOTC%2OFiles/Account%2OReconciliation/2OI3\nAlternate Rec Template\n\tGE Capital Americas **EF**-**Indirect**"
+            ]
+          }
+        },
+        {
+          "score": 236.57721,
+          "file_name": "066400-CTIUSD-EF-Indirect-Apr-13 - NU Reviewed_{A0E95187-0100-C3BC-9C53-2D26ACCA3842}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066400-CTIUSD-EF-Indirect-Apr-13 - NU Reviewed_{A0E95187-0100-C3BC-9C53-2D26ACCA3842}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "066400-**CTIUSD**-EF-**Indirect**-**Apr**-13 - NU **Reviewed_**{**A0E95187**-**0100**-C3BC-9C53-2D26ACCA3842}.**xlsx**"
+            ],
+            "main_content": [
+              "Business:\t**EF** **Indirect**\tFunctional currency of the account being reconciled\tUSD\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tERROR:",
+              "Finance/USEF%2OOTC%2OFiles/Account%2OReconciliation/2OI3\nAlternate Rec Template\n\tGE Capital Americas **EF**-**Indirect**"
+            ]
+          }
+        },
+        {
+          "score": 29.009495,
+          "file_name": "050001_BNSC8C_{50D25187-0700-C5D7-87A3-625E8093B91B}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\050001_BNSC8C_{50D25187-0700-C5D7-87A3-625E8093B91B}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "O5OOOI_BNSC8C/O5OOOI_C8C_VIC_C3C_M9C_BPC_Aug_I3.**xlsx**\n\n\nO5OOOI_BNSC8C/O5OOOI_C8U_VIU_C3U_M9U_BPU_Aug-I3",
+              ".**xlsx**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_partial_2",
+      "query": "CTIUSD",
+      "query_type": "keyword",
+      "description": "Search for keyword from filename: CTIUSD",
+      "passed": true,
+      "total_hits": 191,
+      "expected_min": 1,
+      "search_time_ms": 108.48307609558105,
+      "top_results": [
+        {
+          "score": 35.99234,
+          "file_name": "066400-CTIUSD-EF-Indirect-Sep-13 - NU Reviewed_{E0C75187-0000-C270-B67A-D4C0489ECA87}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066400-CTIUSD-EF-Indirect-Sep-13 - NU Reviewed_{E0C75187-0000-C270-B67A-D4C0489ECA87}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "066400-**CTIUSD**-EF-Indirect-Sep-13 - NU Reviewed_{E0C75187-0000-C270-B67A-D4C0489ECA87}.xlsx"
+            ],
+            "main_content": [
+              "O.OO\tO.OO\tIO/5/2OI3\t**CTIUSD**\tZBA\n\tO664OO-**CTIUSD**-I89 Total\t\t\t\t\t\tO.OO\tO.OO\tO.OO\n\tO664OO-**CTIUSD**-AM3\tTFB\tAM3",
+              "**CTIUSD**\tNon-ZBA\n\tO664OO-**CTIUSD**-AUX\tCID\tAUX\tO664OOOO3OOOOOO\tOO\tC24D\tO.OO\tO.OO\tO.OO\tIO/5/2OI3\t**CTIUSD**\tZBA"
+            ]
+          }
+        },
+        {
+          "score": 35.99234,
+          "file_name": "030-CTIUSD-EF Indirect-Nov-13 - NU Reviewed_{40DC5187-0D00-C534-84EE-7B7DBE6960EF}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\030-CTIUSD-EF Indirect-Nov-13 - NU Reviewed_{40DC5187-0D00-C534-84EE-7B7DBE6960EF}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "030-**CTIUSD**-EF Indirect-Nov-13 - NU Reviewed_{40DC5187-0D00-C534-84EE-7B7DBE6960EF}.xlsx"
+            ],
+            "main_content": [
+              "CDL\tI89\tO3OOOIOOIOOOOOO\t4O\tEOIL\t27,98I.43\tO.OO\t27,98I.43\tI2/9/2OI3\t**CTIUSD**\tNon-ZBA\n\tO3OOOI-**CTIUSD**-I89",
+              "O3OOOI-**CTIUSD**-AUX\tTFB\tAUX\tO3OOOIOOIOOOOOO\t5O\tTB34\tI,8I7.OI\tO.OO\tI,8I7.OI\tI2/9/2OI3\t**CTIUSD**\tNon-ZBA\n\tO3OOOI-**CTIUSD**-AUX"
+            ]
+          }
+        },
+        {
+          "score": 35.99234,
+          "file_name": "047-CTIUSD-EF Indirect-Jan-13 - NU Reviewed_{C0EA5187-0800-C6C4-A0D9-9EAAB9129F04}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\047-CTIUSD-EF Indirect-Jan-13 - NU Reviewed_{C0EA5187-0800-C6C4-A0D9-9EAAB9129F04}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "047-**CTIUSD**-EF Indirect-Jan-13 - NU Reviewed_{C0EA5187-0800-C6C4-A0D9-9EAAB9129F04}.xlsx"
+            ],
+            "main_content": [
+              "**CTIUSD**\tZBA\n\tO47OOI-**CTIUSD**-I89\tCID\tI89\tO47OOIOO2D3IOOO\t4O\tC24D\tO.OO\tO.OO\tO.OO\t2/2I/2OI3\t**CTIUSD**\tZBA\n\tO47OOI-**CTIUSD**-I89",
+              "2/2I/2OI3\t**CTIUSD**\tNon-ZBA\n\tO47OOI-**CTIUSD**-I89 Total\t\t\t\t\t\t253,356.46\t253,356.46\tO.OO\n\tO47OOI-**CTIUSD**-AUX"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_exact_3",
+      "query": "050001_C8C_VIC_C3C_M9C_BPC_Apr_13(1)_{10F45187-0000-CAED-B599-EDBA0B33C283}.xlsx",
+      "query_type": "keyword",
+      "description": "Search for exact filename: 050001_C8C_VIC_C3C_M9C_BPC_Apr_13(1)_{10F45187-000...",
+      "passed": true,
+      "total_hits": 15,
+      "expected_min": 1,
+      "search_time_ms": 953.3038139343262,
+      "top_results": [
+        {
+          "score": 17.580603,
+          "file_name": "030_050_CCT_356-Apr-13(1)_{00015287-0100-C64E-A118-E31384DA31E9}.xls",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\030_050_CCT_356-Apr-13(1)_{00015287-0100-C64E-A118-E31384DA31E9}.xls",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        },
+        {
+          "score": 17.580603,
+          "file_name": "030_050_CCT_356-May-13_{E0E15187-0400-C692-9D4D-CE7ACCC1D709}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\030_050_CCT_356-May-13_{E0E15187-0400-C692-9D4D-CE7ACCC1D709}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        },
+        {
+          "score": 17.544388,
+          "file_name": "130004001139_C9CAAA_JUN-13_{90F65187-0500-C9B6-A3D0-5CB3F6EBA420}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\130004001139_C9CAAA_JUN-13_{90F65187-0500-C9B6-A3D0-5CB3F6EBA420}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_partial_3",
+      "query": "CAED",
+      "query_type": "keyword",
+      "description": "Search for keyword from filename: CAED",
+      "passed": true,
+      "total_hits": 501,
+      "expected_min": 1,
+      "search_time_ms": 209.08379554748535,
+      "top_results": [],
+      "error": null
+    },
+    {
+      "test_name": "filename_exact_4",
+      "query": "066175-CTIUSD-EF Indirect-Dec-12 - NU Reviewed_{B0F95187-0100-C61A-93D0-2B6F083D866A}.xlsx",
+      "query_type": "keyword",
+      "description": "Search for exact filename: 066175-CTIUSD-EF Indirect-Dec-12 - NU Reviewed_{B0...",
+      "passed": true,
+      "total_hits": 9,
+      "expected_min": 1,
+      "search_time_ms": 1136.693000793457,
+      "top_results": [
+        {
+          "score": 481.12085,
+          "file_name": "066175-CTIUSD-EF Indirect-Dec-12 - NU Reviewed_{B0F95187-0100-C61A-93D0-2B6F083D866A}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066175-CTIUSD-EF Indirect-Dec-12 - NU Reviewed_{B0F95187-0100-C61A-93D0-2B6F083D866A}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**066175**-**CTIUSD**-EF **Indirect**-**Dec**-12 - NU **Reviewed_**{**B0F95187**-**0100**-**C61A**-**93D0**-**2B6F083D866A**}.**xlsx**"
+            ],
+            "main_content": [
+              "Business:\t**EF** **Indirect**\tFunctional currency of the account being reconciled\tUSD\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tERROR:",
+              "../../../../../../../../../2OI2\nAlternate Rec Template\n\tGE Capital Americas **EF**-**Indirect**"
+            ]
+          }
+        },
+        {
+          "score": 223.5138,
+          "file_name": "066400-CTIUSD-EF-Indirect-Dec-12 - NU Reviewed_{B0F95187-0100-CF6B-BD40-45B3B6456BCB}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066400-CTIUSD-EF-Indirect-Dec-12 - NU Reviewed_{B0F95187-0100-CF6B-BD40-45B3B6456BCB}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "066400-**CTIUSD**-EF-**Indirect**-**Dec**-12 - NU **Reviewed_**{**B0F95187**-**0100**-CF6B-BD40-45B3B6456BCB}.**xlsx**"
+            ],
+            "main_content": [
+              "Business:\t**EF** **Indirect**\tFunctional currency of the account being reconciled\tUSD\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tERROR:",
+              "Alternate Rec Template\n\tGE Capital Americas **EF**-**Indirect**"
+            ]
+          }
+        },
+        {
+          "score": 223.5138,
+          "file_name": "066450-CTIUSD-EF-Indirect-Dec-12 - NU Reviewed_{B0F95187-0100-CDCC-9D74-9CB4B32AFDA7}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066450-CTIUSD-EF-Indirect-Dec-12 - NU Reviewed_{B0F95187-0100-CDCC-9D74-9CB4B32AFDA7}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "066450-**CTIUSD**-EF-**Indirect**-**Dec**-12 - NU **Reviewed_**{**B0F95187**-**0100**-CDCC-9D74-9CB4B32AFDA7}.**xlsx**"
+            ],
+            "main_content": [
+              "Business:\t**EF** **Indirect**\tFunctional currency of the account being reconciled\tUSD\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tERROR:",
+              "Finance/USEF%2OOTC%2OFiles/Account%2OReconciliation/2OI2\nAlternate Rec Template\n\tGE Capital Americas **EF**-**Indirect**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_partial_4",
+      "query": "CTIUSD",
+      "query_type": "keyword",
+      "description": "Search for keyword from filename: CTIUSD",
+      "passed": true,
+      "total_hits": 191,
+      "expected_min": 1,
+      "search_time_ms": 108.79826545715332,
+      "top_results": [
+        {
+          "score": 35.99234,
+          "file_name": "066400-CTIUSD-EF-Indirect-Sep-13 - NU Reviewed_{E0C75187-0000-C270-B67A-D4C0489ECA87}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066400-CTIUSD-EF-Indirect-Sep-13 - NU Reviewed_{E0C75187-0000-C270-B67A-D4C0489ECA87}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "066400-**CTIUSD**-EF-Indirect-Sep-13 - NU Reviewed_{E0C75187-0000-C270-B67A-D4C0489ECA87}.xlsx"
+            ],
+            "main_content": [
+              "O.OO\tO.OO\tIO/5/2OI3\t**CTIUSD**\tZBA\n\tO664OO-**CTIUSD**-I89 Total\t\t\t\t\t\tO.OO\tO.OO\tO.OO\n\tO664OO-**CTIUSD**-AM3\tTFB\tAM3",
+              "**CTIUSD**\tNon-ZBA\n\tO664OO-**CTIUSD**-AUX\tCID\tAUX\tO664OOOO3OOOOOO\tOO\tC24D\tO.OO\tO.OO\tO.OO\tIO/5/2OI3\t**CTIUSD**\tZBA"
+            ]
+          }
+        },
+        {
+          "score": 35.99234,
+          "file_name": "030-CTIUSD-EF Indirect-Nov-13 - NU Reviewed_{40DC5187-0D00-C534-84EE-7B7DBE6960EF}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\030-CTIUSD-EF Indirect-Nov-13 - NU Reviewed_{40DC5187-0D00-C534-84EE-7B7DBE6960EF}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "030-**CTIUSD**-EF Indirect-Nov-13 - NU Reviewed_{40DC5187-0D00-C534-84EE-7B7DBE6960EF}.xlsx"
+            ],
+            "main_content": [
+              "CDL\tI89\tO3OOOIOOIOOOOOO\t4O\tEOIL\t27,98I.43\tO.OO\t27,98I.43\tI2/9/2OI3\t**CTIUSD**\tNon-ZBA\n\tO3OOOI-**CTIUSD**-I89",
+              "O3OOOI-**CTIUSD**-AUX\tTFB\tAUX\tO3OOOIOOIOOOOOO\t5O\tTB34\tI,8I7.OI\tO.OO\tI,8I7.OI\tI2/9/2OI3\t**CTIUSD**\tNon-ZBA\n\tO3OOOI-**CTIUSD**-AUX"
+            ]
+          }
+        },
+        {
+          "score": 35.99234,
+          "file_name": "047-CTIUSD-EF Indirect-Jan-13 - NU Reviewed_{C0EA5187-0800-C6C4-A0D9-9EAAB9129F04}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\047-CTIUSD-EF Indirect-Jan-13 - NU Reviewed_{C0EA5187-0800-C6C4-A0D9-9EAAB9129F04}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "047-**CTIUSD**-EF Indirect-Jan-13 - NU Reviewed_{C0EA5187-0800-C6C4-A0D9-9EAAB9129F04}.xlsx"
+            ],
+            "main_content": [
+              "**CTIUSD**\tZBA\n\tO47OOI-**CTIUSD**-I89\tCID\tI89\tO47OOIOO2D3IOOO\t4O\tC24D\tO.OO\tO.OO\tO.OO\t2/2I/2OI3\t**CTIUSD**\tZBA\n\tO47OOI-**CTIUSD**-I89",
+              "2/2I/2OI3\t**CTIUSD**\tNon-ZBA\n\tO47OOI-**CTIUSD**-I89 Total\t\t\t\t\t\t253,356.46\t253,356.46\tO.OO\n\tO47OOI-**CTIUSD**-AUX"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_exact_5",
+      "query": "066175-CTIUSD-EF Indirect-Jan-13 - NU Reviewed_{30D25187-0F00-CCF8-94A9-2AEEDE5F2BAD}.xlsx",
+      "query_type": "keyword",
+      "description": "Search for exact filename: 066175-CTIUSD-EF Indirect-Jan-13 - NU Reviewed_{30...",
+      "passed": true,
+      "total_hits": 6,
+      "expected_min": 1,
+      "search_time_ms": 908.2062244415283,
+      "top_results": [
+        {
+          "score": 541.88184,
+          "file_name": "066175-CTIUSD-EF Indirect-Jan-13 - NU Reviewed_{30D25187-0F00-CCF8-94A9-2AEEDE5F2BAD}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066175-CTIUSD-EF Indirect-Jan-13 - NU Reviewed_{30D25187-0F00-CCF8-94A9-2AEEDE5F2BAD}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**066175**-**CTIUSD**-EF **Indirect**-**Jan**-13 - NU **Reviewed_**{**30D25187**-**0F00**-**CCF8**-**94A9**-**2AEEDE5F2BAD**}.**xlsx**"
+            ],
+            "main_content": [
+              "Business:\t**EF** **Indirect**\tFunctional currency of the account being reconciled\tUSD\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tERROR:",
+              "../../../../../../../2OI2\nAlternate Rec Template\n\tGE Capital Americas **EF**-**Indirect**"
+            ]
+          }
+        },
+        {
+          "score": 26.676111,
+          "file_name": "050001_BNSC8C_{50D25187-0700-C5D7-87A3-625E8093B91B}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\050001_BNSC8C_{50D25187-0700-C5D7-87A3-625E8093B91B}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "O5OOOI_BNSC8C/O5OOOI_C8C_VIC_C3C_M9C_BPC_Aug_I3.**xlsx**\n\n\nO5OOOI_BNSC8C/O5OOOI_C8U_VIU_C3U_M9U_BPU_Aug-I3",
+              ".**xlsx**"
+            ]
+          }
+        },
+        {
+          "score": 20.315502,
+          "file_name": "046001_BNSC8C_{D0CA5187-0100-C8EB-8ED9-CD14D7EEE7CB}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\046001_BNSC8C_{D0CA5187-0100-C8EB-8ED9-CD14D7EEE7CB}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "O46OOI_BNSC8C/~$O46OOI_C8C_C3C_M9C_VIC_Jun_I3.**xlsx**\n\n\nO46OOI_BNSC8C/O46OOI_C8C_C3C_M9C_VIC_Oct _I3.**xlsx**",
+              "O46OOI_BNSC8C/O46OOI_C8U_C3U_M9U_VIU_ Oct-I3.**xlsx**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_partial_5",
+      "query": "CTIUSD",
+      "query_type": "keyword",
+      "description": "Search for keyword from filename: CTIUSD",
+      "passed": true,
+      "total_hits": 191,
+      "expected_min": 1,
+      "search_time_ms": 108.3841323852539,
+      "top_results": [
+        {
+          "score": 35.99234,
+          "file_name": "066400-CTIUSD-EF-Indirect-Sep-13 - NU Reviewed_{E0C75187-0000-C270-B67A-D4C0489ECA87}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066400-CTIUSD-EF-Indirect-Sep-13 - NU Reviewed_{E0C75187-0000-C270-B67A-D4C0489ECA87}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "066400-**CTIUSD**-EF-Indirect-Sep-13 - NU Reviewed_{E0C75187-0000-C270-B67A-D4C0489ECA87}.xlsx"
+            ],
+            "main_content": [
+              "O.OO\tO.OO\tIO/5/2OI3\t**CTIUSD**\tZBA\n\tO664OO-**CTIUSD**-I89 Total\t\t\t\t\t\tO.OO\tO.OO\tO.OO\n\tO664OO-**CTIUSD**-AM3\tTFB\tAM3",
+              "**CTIUSD**\tNon-ZBA\n\tO664OO-**CTIUSD**-AUX\tCID\tAUX\tO664OOOO3OOOOOO\tOO\tC24D\tO.OO\tO.OO\tO.OO\tIO/5/2OI3\t**CTIUSD**\tZBA"
+            ]
+          }
+        },
+        {
+          "score": 35.99234,
+          "file_name": "030-CTIUSD-EF Indirect-Nov-13 - NU Reviewed_{40DC5187-0D00-C534-84EE-7B7DBE6960EF}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\030-CTIUSD-EF Indirect-Nov-13 - NU Reviewed_{40DC5187-0D00-C534-84EE-7B7DBE6960EF}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "030-**CTIUSD**-EF Indirect-Nov-13 - NU Reviewed_{40DC5187-0D00-C534-84EE-7B7DBE6960EF}.xlsx"
+            ],
+            "main_content": [
+              "CDL\tI89\tO3OOOIOOIOOOOOO\t4O\tEOIL\t27,98I.43\tO.OO\t27,98I.43\tI2/9/2OI3\t**CTIUSD**\tNon-ZBA\n\tO3OOOI-**CTIUSD**-I89",
+              "O3OOOI-**CTIUSD**-AUX\tTFB\tAUX\tO3OOOIOOIOOOOOO\t5O\tTB34\tI,8I7.OI\tO.OO\tI,8I7.OI\tI2/9/2OI3\t**CTIUSD**\tNon-ZBA\n\tO3OOOI-**CTIUSD**-AUX"
+            ]
+          }
+        },
+        {
+          "score": 35.99234,
+          "file_name": "047-CTIUSD-EF Indirect-Jan-13 - NU Reviewed_{C0EA5187-0800-C6C4-A0D9-9EAAB9129F04}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\047-CTIUSD-EF Indirect-Jan-13 - NU Reviewed_{C0EA5187-0800-C6C4-A0D9-9EAAB9129F04}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "047-**CTIUSD**-EF Indirect-Jan-13 - NU Reviewed_{C0EA5187-0800-C6C4-A0D9-9EAAB9129F04}.xlsx"
+            ],
+            "main_content": [
+              "**CTIUSD**\tZBA\n\tO47OOI-**CTIUSD**-I89\tCID\tI89\tO47OOIOO2D3IOOO\t4O\tC24D\tO.OO\tO.OO\tO.OO\t2/2I/2OI3\t**CTIUSD**\tZBA\n\tO47OOI-**CTIUSD**-I89",
+              "2/2I/2OI3\t**CTIUSD**\tNon-ZBA\n\tO47OOI-**CTIUSD**-I89 Total\t\t\t\t\t\t253,356.46\t253,356.46\tO.OO\n\tO47OOI-**CTIUSD**-AUX"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_1_1",
+      "query": "being",
+      "query_type": "keyword",
+      "description": "Search for content keyword: being",
+      "passed": true,
+      "total_hits": 1100,
+      "expected_min": 1,
+      "search_time_ms": 174.61919784545898,
+      "top_results": [
+        {
+          "score": 6.307803,
+          "file_name": "1636041##ISSUE-101155##Omnibus_Supporting_Documents_{96027BE7-15EF-4181-909D-31601DBDBF9A}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\1636041##ISSUE-101155##Omnibus_Supporting_Documents_{96027BE7-15EF-4181-909D-31601DBDBF9A}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        },
+        {
+          "score": 6.202842,
+          "file_name": "066175_BNSC8C_{20C45187-0900-C65D-A9FD-4611B951C2A7}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066175_BNSC8C_{20C45187-0900-C65D-A9FD-4611B951C2A7}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        },
+        {
+          "score": 6.1277385,
+          "file_name": "122001002xxx_CoreQ3'13v1_{A0F15187-0600-C010-A109-E5A4E391F09D}.xlsx",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\122001002xxx_CoreQ3'13v1_{A0F15187-0600-C010-A109-E5A4E391F09D}.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "shaded areas in the \"Key account info. (9-digit)\" tab if multiple 9-digit account reconciliations are **being**",
+              "account number:\tI22OOI\n\t\t\t\tAccount number (9 or I2):\tI22OOIOO2\n\t\t\t\tFunctional currency of the account **being**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_1_2",
+      "query": "General",
+      "query_type": "keyword",
+      "description": "Search for content keyword: General",
+      "passed": true,
+      "total_hits": 1147,
+      "expected_min": 1,
+      "search_time_ms": 51.01490020751953,
+      "top_results": [
+        {
+          "score": 3.3596487,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 93.05441488472326,
+          "highlights": {
+            "ocr_content": [
+              "HARTFORD DR., STE.2OO\nSCOTTSDALE, AZ 85255\n\n**GENERAL** ELECTRIC CAPITAL CORPORATION\n8377 E.",
+              ", STE 2OO\nSCOTTSDALE, AZ 85255\n\n**GENERAL** ELECTRIC CAPITAL CORPORATION\n8377 E."
+            ],
+            "main_content": [
+              "HARTFORD DR., STE.2OO\nSCOTTSDALE, AZ 85255\n\n**GENERAL** ELECTRIC CAPITAL CORPORATION\n8377 E.",
+              ", STE 2OO\nSCOTTSDALE, AZ 85255\n\n**GENERAL** ELECTRIC CAPITAL CORPORATION\n8377 E."
+            ]
+          }
+        },
+        {
+          "score": 3.1327636,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 94.27877588184754,
+          "highlights": {
+            "ocr_content": [
+              "HARTFORD DR., STE.2OO\nSCOTTSDALE, AZ 85255\n\n**GENERAL** ELECTRIC CAPITAL\nCORPORATION\n\n8377 E.",
+              "HARTFORD DR., STE.2OO\nSCOTTSDALE, AZ 85255\n\n**GENERAL** ELECTRIC CAPITAL\nCORPORATION\n\n8377 E."
+            ],
+            "main_content": [
+              "HARTFORD DR., STE.2OO\nSCOTTSDALE, AZ 85255\n\n**GENERAL** ELECTRIC CAPITAL\nCORPORATION\n\n8377 E.",
+              "HARTFORD DR., STE.2OO\nSCOTTSDALE, AZ 85255\n\n**GENERAL** ELECTRIC CAPITAL\nCORPORATION\n\n8377 E."
+            ]
+          }
+        },
+        {
+          "score": 3.1207976,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 90.78060639911415,
+          "highlights": {
+            "ocr_content": [
+              "Without limiting the\n**generality** of the foregoing, if and to the extent that Landlord rejects the Lease",
+              "Albert Bienvenu TV\nTelephone: (5O4) 835-I2O3\nTelecopy: (5O4) 835-63IO\n\nIf to Lender: **General** Electric"
+            ],
+            "main_content": [
+              "Without limiting the\n**generality** of the foregoing, if and to the extent that Landlord rejects the Lease",
+              "Albert Bienvenu TV\nTelephone: (5O4) 835-I2O3\nTelecopy: (5O4) 835-63IO\n\nIf to Lender: **General** Electric"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_1_3",
+      "query": "Period",
+      "query_type": "keyword",
+      "description": "Search for content keyword: Period",
+      "passed": true,
+      "total_hits": 1122,
+      "expected_min": 1,
+      "search_time_ms": 58.25209617614746,
+      "top_results": [
+        {
+          "score": 10.095048,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 94.66754251307692,
+          "highlights": {
+            "ocr_content": [
+              "Extension **Periods**: Up to four **periods** of five years each, as set forth in Section 2.3.",
+              "(a) Extension **Period**."
+            ],
+            "main_content": [
+              "Extension **Periods**: Up to four **periods** of five years each, as set forth in Section 2.3.",
+              "(a) Extension **Period**."
+            ]
+          }
+        },
+        {
+          "score": 9.666636,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 94.32010427137976,
+          "highlights": {
+            "ocr_content": [
+              "\"Draw **Period**\" means the **period** from the Closing Date to the DLOC Expiration Date.",
+              "All such\nfinancial statements shall be prepared in accordance with GAAP from **period** to **period** and shall"
+            ],
+            "main_content": [
+              "\"Draw **Period**\" means the **period** from the Closing Date to the DLOC Expiration Date.",
+              "All such\nfinancial statements shall be prepared in accordance with GAAP from **period** to **period** and shall"
+            ]
+          }
+        },
+        {
+          "score": 8.904371,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 92.90240541663859,
+          "highlights": {
+            "ocr_content": [
+              "not compulsory, to take effect fifteen\n(I5) months following said July 3I and to be effective for a **period**",
+              "NOT TO COMPETE\n\nLicensee covenants that, during the term of this License Agreement, and also for a **period**"
+            ],
+            "main_content": [
+              "not compulsory, to take effect fifteen\n(I5) months following said July 3I and to be effective for a **period**",
+              "NOT TO COMPETE\n\nLicensee covenants that, during the term of this License Agreement, and also for a **period**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_2_1",
+      "query": "ERROR",
+      "query_type": "keyword",
+      "description": "Search for content keyword: ERROR",
+      "passed": true,
+      "total_hits": 957,
+      "expected_min": 1,
+      "search_time_ms": 187.06655502319336,
+      "top_results": [
+        {
+          "score": 16.06923,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 88.23985008145219,
+          "highlights": {
+            "ocr_content": [
+              "If you have\nreceived this\n\nmessage in **error**, please notify the sender at 4O2-346-6OOO and delete this",
+              "If you have\nreceived this\n\nmessage in **error**, please notify the sender at 4O2-346-6OOO and delete this"
+            ],
+            "main_content": [
+              "If you have\nreceived this\n\nmessage in **error**, please notify the sender at 4O2-346-6OOO and delete this",
+              "If you have\nreceived this\n\nmessage in **error**, please notify the sender at 4O2-346-6OOO and delete this"
+            ]
+          }
+        },
+        {
+          "score": 12.280529,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 94.27877588184754,
+          "highlights": {
+            "ocr_content": [
+              "If you have received\nthis\n\nmessage in **error**, please notify the sender at 4O2-346-6OOO and delete this",
+              "public records rests with the filing office of the\njurisdiction, and we will accept no liability for **errors**"
+            ],
+            "main_content": [
+              "If you have received\nthis\n\nmessage in **error**, please notify the sender at 4O2-346-6OOO and delete this",
+              "public records rests with the filing office of the\njurisdiction, and we will accept no liability for **errors**"
+            ]
+          }
+        },
+        {
+          "score": 11.646183,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 74.7897840125392,
+          "highlights": {
+            "ocr_content": [
+              "If you have received this message in **error**, please notify the sender at\n4O2-346-6OOO and delete this"
+            ],
+            "main_content": [
+              "If you have received this message in **error**, please notify the sender at\n4O2-346-6OOO and delete this"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_2_2",
+      "query": "Alternate",
+      "query_type": "keyword",
+      "description": "Search for content keyword: Alternate",
+      "passed": true,
+      "total_hits": 873,
+      "expected_min": 1,
+      "search_time_ms": 76.75719261169434,
+      "top_results": [
+        {
+          "score": 13.079708,
+          "file_name": "03_{A0005287-0300-C2DF-9528-D4A56F77DE68}.xls",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\03_{A0005287-0300-C2DF-9528-D4A56F77DE68}.xls",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        },
+        {
+          "score": 12.085085,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 84.63434152465723,
+          "highlights": {
+            "ocr_content": [
+              "I\n\nS_ **ALTERNATIVE** DESIGNATION ft sopicela Terr ipl eneae l Y NON-UCCFILING\n3."
+            ],
+            "main_content": [
+              "I\n\nS_ **ALTERNATIVE** DESIGNATION ft sopicela Terr ipl eneae l Y NON-UCCFILING\n3."
+            ]
+          }
+        },
+        {
+          "score": 11.193535,
+          "file_name": "1636041##ISSUE-101155##Omnibus_Supporting_Documents_{96027BE7-15EF-4181-909D-31601DBDBF9A}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\1636041##ISSUE-101155##Omnibus_Supporting_Documents_{96027BE7-15EF-4181-909D-31601DBDBF9A}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_2_3",
+      "query": "Manual",
+      "query_type": "keyword",
+      "description": "Search for content keyword: Manual",
+      "passed": true,
+      "total_hits": 999,
+      "expected_min": 1,
+      "search_time_ms": 29.70743179321289,
+      "top_results": [
+        {
+          "score": 12.46808,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 92.90240541663859,
+          "highlights": {
+            "ocr_content": [
+              "(\"**Manual**\"), as modified or\nrevised from time to time, but only in the manner specified in the **Manual**",
+              "(\"Licensed Products\"); Arby's may modify or revise the **Manual**'s requirements\nconceming menu items or"
+            ],
+            "main_content": [
+              "(\"**Manual**\"), as modified or\nrevised from time to time, but only in the manner specified in the **Manual**",
+              "(\"Licensed Products\"); Arby's may modify or revise the **Manual's** requirements\nconceming menu items or"
+            ]
+          }
+        },
+        {
+          "score": 10.239782,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 87.70570900330755,
+          "highlights": {
+            "ocr_content": [
+              "I2IIOO5433 Effective Date:\nPursuant to the requiraments of Rule P-2I, Basic **Manual** of Rules, Rates and"
+            ],
+            "main_content": [
+              "I2IIOO5433 Effective Date:\nPursuant to the requiraments of Rule P-2I, Basic **Manual** of Rules, Rates and"
+            ]
+          }
+        },
+        {
+          "score": 9.687144,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 89.28826224870598,
+          "highlights": {
+            "ocr_content": [
+              "File No I2IIOO5434 Effective Date: October I6, 2OO7\nPursuant to the requirements of Rule P-2I, Basic **Manual**"
+            ],
+            "main_content": [
+              "File No I2IIOO5434 Effective Date: October I6, 2OO7\nPursuant to the requirements of Rule P-2I, Basic **Manual**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_3_1",
+      "query": "clear",
+      "query_type": "keyword",
+      "description": "Search for content keyword: clear",
+      "passed": true,
+      "total_hits": 387,
+      "expected_min": 1,
+      "search_time_ms": 110.65363883972168,
+      "top_results": [
+        {
+          "score": 70.259605,
+          "file_name": "130 Syndication Clearing Account Rec FEB-13 v3 Ledcor schedules removal_{B0E55187-0400-C5C0-9C8A-524E129FFF31}.xlsm",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\130 Syndication Clearing Account Rec FEB-13 v3 Ledcor schedules removal_{B0E55187-0400-C5C0-9C8A-524E129FFF31}.xlsm",
+          "has_main_content": false,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "130 Syndication **Clearing** Account Rec FEB-13 v3 Ledcor schedules removal_{B0E55187-0400-C5C0-9C8A-524E129FFF31}.xlsm"
+            ]
+          }
+        },
+        {
+          "score": 65.480774,
+          "file_name": "130 Syndication Clearing Account Rec MAR-13 V3_{80005287-0700-CC27-9D8A-1E0BA4205968}.xlsm",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\130 Syndication Clearing Account Rec MAR-13 V3_{80005287-0700-CC27-9D8A-1E0BA4205968}.xlsm",
+          "has_main_content": false,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "130 Syndication **Clearing** Account Rec MAR-13 V3_{80005287-0700-CC27-9D8A-1E0BA4205968}.xlsm"
+            ]
+          }
+        },
+        {
+          "score": 65.480774,
+          "file_name": "130 Syndication Clearing Account Rec APR-13 v3_{70D25187-0A00-CF50-A328-4C2A8DDF09DE}.xlsm",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\130 Syndication Clearing Account Rec APR-13 v3_{70D25187-0A00-CF50-A328-4C2A8DDF09DE}.xlsm",
+          "has_main_content": false,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "130 Syndication **Clearing** Account Rec APR-13 v3_{70D25187-0A00-CF50-A328-4C2A8DDF09DE}.xlsm"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_3_2",
+      "query": "would",
+      "query_type": "keyword",
+      "description": "Search for content keyword: would",
+      "passed": true,
+      "total_hits": 239,
+      "expected_min": 1,
+      "search_time_ms": 81.99858665466309,
+      "top_results": [
+        {
+          "score": 14.2831745,
+          "file_name": "058034_Appraisal 09-17-09_{B7CB6E90-26DC-454C-97AD-6738639904B1}.pdf",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\058034_Appraisal 09-17-09_{B7CB6E90-26DC-454C-97AD-6738639904B1}.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Such determination **would** \nrequire investigation by a qualified expert in the field of soils or geology",
+              "Such determination **would** require investigation \nby a qualified expert in the field, such as a structural"
+            ]
+          }
+        },
+        {
+          "score": 14.2831745,
+          "file_name": "058100_Appraisal 09-17-09_{9C7F7A03-D2DB-438A-87C6-E5A794251A0A}.pdf",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\058100_Appraisal 09-17-09_{9C7F7A03-D2DB-438A-87C6-E5A794251A0A}.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Such determination **would** \nrequire investigation by a qualified expert in the field of soils or geology",
+              "Beginning in 2OO5 several forces \ncame into play that **would** cause \nconvenience store owners to sell"
+            ]
+          }
+        },
+        {
+          "score": 14.178846,
+          "file_name": "",
+          "file_path": "",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 94.84717918917029,
+          "highlights": {
+            "ocr_content": [
+              "cause such Member to have a Deficit Capital Account or **would** increase the\nDeficit Capital Account of",
+              "Member shall instead be\ncharged to the Capital Account of any Members which **would** not have a Deficit"
+            ],
+            "main_content": [
+              "cause such Member to have a Deficit Capital Account or **would** increase the\nDeficit Capital Account of",
+              "Member shall instead be\ncharged to the Capital Account of any Members which **would** not have a Deficit"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_3_3",
+      "query": "Genpact",
+      "query_type": "keyword",
+      "description": "Search for content keyword: Genpact",
+      "passed": true,
+      "total_hits": 927,
+      "expected_min": 1,
+      "search_time_ms": 239.5491600036621,
+      "top_results": [
+        {
+          "score": 8.243166,
+          "file_name": "047001_C8U_C3U_M9U_VIU_Mar_13_{00D85187-0900-C69B-B30B-C291E8C8E29E}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\047001_C8U_C3U_M9U_VIU_Mar_13_{00D85187-0900-C69B-B30B-C291E8C8E29E}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        },
+        {
+          "score": 8.080322,
+          "file_name": "1636041##ISSUE-101155##Omnibus_Supporting_Documents_{96027BE7-15EF-4181-909D-31601DBDBF9A}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\1636041##ISSUE-101155##Omnibus_Supporting_Documents_{96027BE7-15EF-4181-909D-31601DBDBF9A}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        },
+        {
+          "score": 8.009655,
+          "file_name": "066175_BNSC8C_{20C45187-0900-C65D-A9FD-4611B951C2A7}.zip",
+          "file_path": "E:\\FileNet_Data_Extracts\\US_Archive_Extract\\2013\\201301\\066175_BNSC8C_{20C45187-0900-C65D-A9FD-4611B951C2A7}.zip",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        }
+      ],
+      "error": null
+    }
+  ],
+  "timestamp": "2026-02-03T10:57:15.282082"
+}

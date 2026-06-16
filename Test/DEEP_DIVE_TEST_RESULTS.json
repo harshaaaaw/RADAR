@@ -1,0 +1,255 @@
+{
+  "timestamp": "2026-02-09 14:32:03",
+  "summary": {
+    "pass": 38,
+    "fail": 0,
+    "warn": 11
+  },
+  "details": [
+    {
+      "name": "OpenSearch reachable",
+      "status": "PASS",
+      "detail": "Version 2.12.0"
+    },
+    {
+      "name": "Index document count",
+      "status": "PASS",
+      "detail": "214,346 documents indexed"
+    },
+    {
+      "name": "Redis reachable",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "Completed files",
+      "status": "PASS",
+      "detail": "215,228 completed, 1,655 failed (0.8% failure rate)"
+    },
+    {
+      "name": "OCR coverage",
+      "status": "PASS",
+      "detail": "needs_ocr=true: 15,596, ocr_completed=true: 3,497"
+    },
+    {
+      "name": "OCR confidence stats",
+      "status": "PASS",
+      "detail": "avg=62.8%, min=25.0%, max=96.9%, count=3,497"
+    },
+    {
+      "name": "OCR confidence distribution",
+      "status": "PASS",
+      "detail": "0-20%: 0 | 20-50%: 1,090 | 50-80%: 1,517 | 80-100%: 890"
+    },
+    {
+      "name": "High-conf OCR has real text",
+      "status": "WARN",
+      "detail": "0/5 high-confidence docs have substantial OCR text"
+    },
+    {
+      "name": "Low-conf / No-OCR samples",
+      "status": "PASS",
+      "detail": "Found 10,000 docs with low/no OCR confidence"
+    },
+    {
+      "name": "  Sample 1: xl_media_image13.jpeg",
+      "status": "PASS",
+      "detail": "confidence=0.0, ocr_text_len=0, mime=?"
+    },
+    {
+      "name": "  Sample 2: ppt_media_image72.png",
+      "status": "PASS",
+      "detail": "confidence=0.0, ocr_text_len=0, mime=?"
+    },
+    {
+      "name": "  Sample 3: 1100110150_225353373_{31FB0BAC-7AE8-4DDB-AFAA-F800FCF935D3}.",
+      "status": "PASS",
+      "detail": "confidence=0.0, ocr_text_len=0, mime=?"
+    },
+    {
+      "name": "  Sample 4: xl_media_image17.jpeg",
+      "status": "PASS",
+      "detail": "confidence=0.0, ocr_text_len=0, mime=?"
+    },
+    {
+      "name": "  Sample 5: word_media_image6.png",
+      "status": "PASS",
+      "detail": "confidence=0.0, ocr_text_len=0, mime=?"
+    },
+    {
+      "name": "OCR failures in Redis",
+      "status": "WARN",
+      "detail": "1655 OCR failures out of 1655 total failures"
+    },
+    {
+      "name": "  OCR fail sample",
+      "status": "PASS",
+      "detail": "ppt_media_image18.png: OCR processing produced no text content for ppt_media_image18.png"
+    },
+    {
+      "name": "  OCR fail sample",
+      "status": "PASS",
+      "detail": "word_media_image1.png: OCR processing produced no text content for word_media_image1.png"
+    },
+    {
+      "name": "  OCR fail sample",
+      "status": "PASS",
+      "detail": "word_media_image21.png: OCR processing produced no text content for word_media_image21.png"
+    },
+    {
+      "name": "File name search: 'worksheets sheet3'",
+      "status": "WARN",
+      "detail": "Found target: False, total hits: 10000"
+    },
+    {
+      "name": "File name search: 'worksheets sheet26'",
+      "status": "WARN",
+      "detail": "Found target: False, total hits: 10000"
+    },
+    {
+      "name": "File name search: 'worksheets sheet26'",
+      "status": "WARN",
+      "detail": "Found target: False, total hits: 10000"
+    },
+    {
+      "name": "Exact phrase: '2 1277.73 1277.73 64'",
+      "status": "PASS",
+      "detail": "Hits: 4"
+    },
+    {
+      "name": "Exact phrase: '1659 49 428 428'",
+      "status": "PASS",
+      "detail": "Hits: 5"
+    },
+    {
+      "name": "Fuzzy search (typo tolerance)",
+      "status": "PASS",
+      "detail": "'documnet managment' -> 10000 hits"
+    },
+    {
+      "name": "Excel files indexed",
+      "status": "PASS",
+      "detail": "297 Excel/spreadsheet files found"
+    },
+    {
+      "name": "Excel files with main_content",
+      "status": "PASS",
+      "detail": "19/20 have substantial main_content"
+    },
+    {
+      "name": "Excel files with embedded_content",
+      "status": "PASS",
+      "detail": "2/20 have embedded_content (multi-sheet)"
+    },
+    {
+      "name": "Excel content search: 'Audit ID:\t\t20142TGECAPASR02'",
+      "status": "PASS",
+      "detail": "From Nordics backup_C06 Management review int, hits: 7"
+    },
+    {
+      "name": "Multi-sheet Excel files",
+      "status": "PASS",
+      "detail": "4 Excel files with 2+ embedded items (sheets)"
+    },
+    {
+      "name": "Image files indexed",
+      "status": "PASS",
+      "detail": "51 image files found"
+    },
+    {
+      "name": "Images with OCR completed",
+      "status": "WARN",
+      "detail": "0/20 images have OCR completed"
+    },
+    {
+      "name": "Images with searchable OCR text",
+      "status": "WARN",
+      "detail": "0 have text, 0 empty, 0 high-conf, 0 low-conf"
+    },
+    {
+      "name": "Screenshot-named files",
+      "status": "PASS",
+      "detail": "256 files with screenshot/screen/capture in name"
+    },
+    {
+      "name": "  Screenshot: WebCSR Screenshots.docx",
+      "status": "WARN",
+      "detail": "OCR done=False, conf=0.0, text_len=0"
+    },
+    {
+      "name": "  Screenshot: 19996292##ACTION-507866##Screenshot for Instance Comple",
+      "status": "WARN",
+      "detail": "OCR done=False, conf=0.0, text_len=0"
+    },
+    {
+      "name": "  Screenshot: 18831201##ACTION-509513##Screenshot showing standard ag",
+      "status": "WARN",
+      "detail": "OCR done=False, conf=0.0, text_len=0"
+    },
+    {
+      "name": "Word documents indexed",
+      "status": "PASS",
+      "detail": "125 Word documents found"
+    },
+    {
+      "name": "Word docs with content",
+      "status": "PASS",
+      "detail": "10/10 have substantial text"
+    },
+    {
+      "name": "DOCX content search: 'they get their credit'",
+      "status": "PASS",
+      "detail": "From 6.1d_Issue Documentation Screen Shots.do, hits: 3"
+    },
+    {
+      "name": "Documents with embedded files",
+      "status": "PASS",
+      "detail": "5,855 documents have embedded content"
+    },
+    {
+      "name": "XML files indexed",
+      "status": "PASS",
+      "detail": "8,756 XML files in index"
+    },
+    {
+      "name": "XML files with content",
+      "status": "WARN",
+      "detail": "0/5 have searchable content"
+    },
+    {
+      "name": "JAR/ZIP files indexed",
+      "status": "PASS",
+      "detail": "3 JAR/ZIP files found"
+    },
+    {
+      "name": "Search 'financial report 2014' (367ms)",
+      "status": "PASS",
+      "detail": "10,000 hits in 367ms"
+    },
+    {
+      "name": "Search '\"quarterly earnings\"' (102ms)",
+      "status": "PASS",
+      "detail": "93 hits in 102ms"
+    },
+    {
+      "name": "Search 'invoice payment' (162ms)",
+      "status": "PASS",
+      "detail": "10,000 hits in 162ms"
+    },
+    {
+      "name": "Search 'employee benefits' (187ms)",
+      "status": "PASS",
+      "detail": "9,521 hits in 187ms"
+    },
+    {
+      "name": "Failures by stage",
+      "status": "PASS",
+      "detail": "ocr: 1655"
+    },
+    {
+      "name": "Failures by error type",
+      "status": "PASS",
+      "detail": "ocr_error: 1655"
+    }
+  ]
+}

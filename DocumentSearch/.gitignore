@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Data & Temp
+data/
+temp/
+checkpoints/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# OpenSearch data
+opensearch/data/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*.old
+*~
+
+# Test files
+test_*.py
+check_*.py
+quick_*.py

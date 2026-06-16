@@ -1,0 +1,9 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "chat.tools.terminal.autoApprove": {
+        "/^\\(Get-Content \"c:\\\\Users\\\\hp212560601\\\\Desktop\\\\DocumentSearch\\\\config\\\\config\\.yaml\" -Raw\\) `\n  -replace \\[regex\\]::Escape\\(\"C:\\\\\\\\Users\\\\\\\\DELL\\\\\\\\Downloads\\\\\\\\DocumentSearch\\\\\\\\DocumentSearch\"\\), \"C:\\\\\\\\Users\\\\\\\\hp212560601\\\\\\\\Desktop\\\\\\\\DocumentSearch\" `\n  -replace \\[regex\\]::Escape\\(\"C:\\\\\\\\Users\\\\\\\\DELL\\\\\\\\Downloads\\\\\\\\DocumentSearch\\\\\\\\test_data\"\\), \"C:\\\\\\\\Users\\\\\\\\hp212560601\\\\\\\\Desktop\\\\\\\\DocumentSearch\\\\\\\\test_data\" `\n  -replace \\[regex\\]::Escape\\(\"C:\\\\\\\\Users\\\\\\\\DELL\\\\\\\\Downloads\\\\\\\\poppler-24\\.02\\.0\\\\\\\\Library\\\\\\\\bin\"\\), \"C:\\\\\\\\Users\\\\\\\\hp212560601\\\\\\\\Downloads\\\\\\\\poppler-24\\.02\\.0\\\\\\\\Library\\\\\\\\bin\" `\n  -replace \\[regex\\]::Escape\\(\"C:\\\\\\\\Users\\\\\\\\DELL\\\\\\\\Downloads\\\\\\\\Metadata Mapping_ Index and Copy ticket_Box - GECIHL ILAAP V2 \\(1\\)\\.xlsx\"\\), \"C:\\\\\\\\Users\\\\\\\\hp212560601\\\\\\\\Downloads\\\\\\\\Metadata Mapping_ Index and Copy ticket_Box - GECIHL ILAAP V2 \\(1\\)\\.xlsx\" \\|\n  Set-Content \"c:\\\\Users\\\\hp212560601\\\\Desktop\\\\DocumentSearch\\\\config\\\\config\\.yaml\" -NoNewline$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

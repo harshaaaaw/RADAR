@@ -1,0 +1,120 @@
+# Enterprise Document Search System - Python Dependencies
+# Production-Grade Requirements
+# Python 3.10+ Required
+
+# ============================================================================
+# Core Framework and Utilities
+# ============================================================================
+pyyaml==6.0.1                    # Configuration management
+python-dotenv==1.0.0             # Environment variable management
+click==8.1.7                     # CLI interface
+psutil==5.9.6                    # System resource monitoring
+pybloom-live==4.0.0             # Bloom filter for deduplication
+tqdm==4.66.1                     # Progress bars
+
+# ============================================================================
+# Data Processing
+# ============================================================================
+requests==2.31.0                 # HTTP client for Tika/OpenSearch
+urllib3==2.1.0                   # HTTP connection pooling
+httpx==0.25.2                    # Modern async HTTP client
+mmh3==4.0.1                      # MurmurHash3 for Bloom filter
+bitarray==2.8.3                  # Efficient bit array for Bloom filter
+
+# ============================================================================
+# OpenSearch/Elasticsearch Client
+# ============================================================================
+opensearch-py==2.4.2             # OpenSearch Python client
+elasticsearch==8.11.0            # Alternative client (compatible)
+
+# ============================================================================
+# Document Processing
+# ============================================================================
+python-magic==0.4.27             # File type detection
+python-magic-bin==0.4.14;platform_system=="Windows"  # Magic bindings for Windows
+chardet==5.2.0                   # Character encoding detection
+
+# ============================================================================
+# OCR and Image Processing
+# ============================================================================
+pytesseract==0.3.10              # Tesseract OCR wrapper
+Pillow==10.1.0                   # Image processing library
+opencv-python==4.8.1.78          # Image preprocessing
+numpy==1.26.2                    # Required by OpenCV
+scikit-image==0.22.0             # Advanced image processing
+pdf2image==1.16.3                # PDF to image conversion for OCR
+
+# ============================================================================
+# Database
+# ============================================================================
+# SQLite is built into Python, no additional package needed
+
+# ============================================================================
+# Web Framework (API and Dashboard)
+# ============================================================================
+fastapi==0.105.0                 # Modern web framework
+uvicorn[standard]==0.25.0        # ASGI server
+pydantic==2.5.2                  # Data validation
+python-multipart==0.0.6          # Form data parsing
+jinja2==3.1.2                    # Template engine for dashboard
+streamlit==1.29.0                # End-user progress dashboard
+
+# ============================================================================
+# Monitoring and Metrics
+# ============================================================================
+prometheus-client==0.19.0        # Metrics collection (optional)
+
+# ============================================================================
+# Logging
+# ============================================================================
+python-json-logger==2.0.7        # JSON logging formatter
+colorlog==6.8.0                  # Colored console logging
+
+# ============================================================================
+# Email Notifications
+# ============================================================================
+# smtplib is built into Python
+email-validator==2.1.0           # Email validation
+
+# ============================================================================
+# Concurrency and Parallelism
+# ============================================================================
+# multiprocessing is built into Python
+
+# ============================================================================
+# Date and Time
+# ============================================================================
+python-dateutil==2.8.2           # Date parsing and manipulation
+
+# ============================================================================
+# Hashing
+# ============================================================================
+# hashlib is built into Python
+
+# ============================================================================
+# Testing (Development)
+# ============================================================================
+pytest==7.4.3                    # Testing framework
+pytest-cov==4.1.0                # Coverage reporting
+pytest-asyncio==0.21.1           # Async test support
+pytest-mock==3.12.0              # Mocking support
+faker==20.1.0                    # Test data generation
+
+# ============================================================================
+# Development Tools
+# ============================================================================
+black==23.12.0                   # Code formatter
+flake8==6.1.0                    # Linting
+mypy==1.7.1                      # Type checking
+isort==5.13.2                    # Import sorting
+
+# ============================================================================
+# Documentation (Optional)
+# ============================================================================
+sphinx==7.2.6                    # Documentation generator
+sphinx-rtd-theme==2.0.0          # ReadTheDocs theme
+
+# ============================================================================
+# Security
+# ============================================================================
+cryptography==41.0.7             # Encryption utilities

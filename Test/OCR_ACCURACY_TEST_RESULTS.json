@@ -1,0 +1,340 @@
+{
+  "timestamp": "2026-02-09 14:34:43",
+  "summary": {
+    "pass": 61,
+    "fail": 0,
+    "warn": 5
+  },
+  "details": [
+    {
+      "name": "OCR Pipeline Progress",
+      "status": "WARN",
+      "detail": "Total needing OCR: 16,028\nOCR completed: 3,716 (23.2%)\nOCR with text content: 3,716"
+    },
+    {
+      "name": "OCR Queue Status",
+      "status": "PASS",
+      "detail": "Pending: 0, Processing: 0"
+    },
+    {
+      "name": "Confidence Statistics",
+      "status": "PASS",
+      "detail": "Count=3,716, Avg=62.2%, Min=25.0%, Max=96.9%"
+    },
+    {
+      "name": "Confidence Percentiles",
+      "status": "PASS",
+      "detail": "P10.0=34% | P25.0=45% | P50.0=64% | P75.0=80% | P90.0=89% | P95.0=93%"
+    },
+    {
+      "name": "  Very Low (0-25)",
+      "status": "PASS",
+      "detail": "0 docs (0.0%)"
+    },
+    {
+      "name": "  Low (25-50)",
+      "status": "PASS",
+      "detail": "1,207 docs (32.5%)"
+    },
+    {
+      "name": "  Medium (50-70)",
+      "status": "PASS",
+      "detail": "1,025 docs (27.6%)"
+    },
+    {
+      "name": "  Good (70-85)",
+      "status": "PASS",
+      "detail": "862 docs (23.2%)"
+    },
+    {
+      "name": "  High (85-95)",
+      "status": "PASS",
+      "detail": "489 docs (13.2%)"
+    },
+    {
+      "name": "  Excellent (95+)",
+      "status": "PASS",
+      "detail": "133 docs (3.6%)"
+    },
+    {
+      "name": "High-confidence (90%+) OCR docs",
+      "status": "PASS",
+      "detail": "313 docs"
+    },
+    {
+      "name": "Found 16 unique OCR texts to verify",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "OCR search: 'STOP'",
+      "status": "PASS",
+      "detail": "1577 hits, source 'ppt_media_image18.png' in results: True, conf=97%"
+    },
+    {
+      "name": "OCR search: 'HR'",
+      "status": "PASS",
+      "detail": "2081 hits, source 'ppt_media_image17.png' in results: True, conf=97%"
+    },
+    {
+      "name": "OCR search: 'End User'",
+      "status": "PASS",
+      "detail": "558 hits, source 'ppt_media_image11.png' in results: False, conf=97%"
+    },
+    {
+      "name": "OCR search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "3358 hits, source 'ppt_media_image4.jpeg' in results: True, conf=97%"
+    },
+    {
+      "name": "OCR search: 'EMERGENCY'",
+      "status": "PASS",
+      "detail": "1424 hits, source 'ppt_media_image9.png' in results: True, conf=97%"
+    },
+    {
+      "name": "OCR search: 'Financial Services\n\nCommercial Credit'",
+      "status": "PASS",
+      "detail": "1 hits, source 'ppt_media_image65.jpeg' in results: True, conf=97%"
+    },
+    {
+      "name": "OCR search: 'GE Money'",
+      "status": "PASS",
+      "detail": "2994 hits, source 'word_media_image1.jpeg' in results: True, conf=97%"
+    },
+    {
+      "name": "OCR search: 'ALD\n\nAutomotive'",
+      "status": "PASS",
+      "detail": "1 hits, source 'ppt_media_image59.png' in results: True, conf=97%"
+    },
+    {
+      "name": "OCR search: 'GE Money Bank'",
+      "status": "PASS",
+      "detail": "1202 hits, source 'ppt_media_image11.jpeg' in results: True, conf=97%"
+    },
+    {
+      "name": "OCR search: 'GE Money\nHome Lending'",
+      "status": "PASS",
+      "detail": "307 hits, source 'ppt_media_image23.jpeg' in results: True, conf=97%"
+    },
+    {
+      "name": "OCR search: 'Monitored Metrics'",
+      "status": "PASS",
+      "detail": "75 hits, source 'ppt_media_image67.png' in results: True, conf=96%"
+    },
+    {
+      "name": "OCR search: 'GE Capital\n\nGlobal Risk Management Updat'",
+      "status": "PASS",
+      "detail": "1 hits, source 'word_media_image1.jpeg' in results: True, conf=96%"
+    },
+    {
+      "name": "OCR search: '2OI4/O4 2OI4/O7'",
+      "status": "PASS",
+      "detail": "1 hits, source 'ppt_media_image35.png' in results: True, conf=96%"
+    },
+    {
+      "name": "OCR search: 'Sourcing'",
+      "status": "PASS",
+      "detail": "6500 hits, source 'ppt_media_image13.png' in results: True, conf=96%"
+    },
+    {
+      "name": "OCR search: 'Document Management Solutions I Secure D'",
+      "status": "PASS",
+      "detail": "1 hits, source 'word_media_image5.png' in results: True, conf=96%"
+    },
+    {
+      "name": "OCR search: 'GE imagination at work'",
+      "status": "PASS",
+      "detail": "891 hits, source 'ppt_media_image1.jpeg' in results: True, conf=96%"
+    },
+    {
+      "name": "OCR searchability rate",
+      "status": "PASS",
+      "detail": "16/16 (100%) OCR texts searchable"
+    },
+    {
+      "name": "PowerPoint embedded",
+      "status": "WARN",
+      "detail": "Total: 5,581, Completed: 1,498 (27%), With text: 1,498, Avg confidence: 66.3%"
+    },
+    {
+      "name": "Word embedded",
+      "status": "PASS",
+      "detail": "Total: 0, Completed: 0 (0%), With text: 0, Avg confidence: 0.0%"
+    },
+    {
+      "name": "Excel embedded",
+      "status": "WARN",
+      "detail": "Total: 1,141, Completed: 196 (17%), With text: 196, Avg confidence: 58.3%"
+    },
+    {
+      "name": "Standalone images",
+      "status": "WARN",
+      "detail": "Total: 1,742, Completed: 245 (14%), With text: 245, Avg confidence: 67.7%"
+    },
+    {
+      "name": "Total OCR failures",
+      "status": "WARN",
+      "detail": "1,724 failures"
+    },
+    {
+      "name": "Failure reasons",
+      "status": "PASS",
+      "detail": "  No text content extracted: 1724"
+    },
+    {
+      "name": "Failure sources",
+      "status": "PASS",
+      "detail": "PPT embedded: 1146, Word embedded: 406, Excel embedded: 66, Other: 106"
+    },
+    {
+      "name": "Content search: 'End User'",
+      "status": "PASS",
+      "detail": "From ppt_media_image11.png, 558 hits, highlight: main_content: OPEN\t<em>END</em>_<em>USER</em>\tR2\tN"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image4.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image5.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image5.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image1.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image1.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'EMERGENCY'",
+      "status": "PASS",
+      "detail": "From ppt_media_image9.png, 1424 hits, highlight: ocr_content: <em>EMERGENCY</em>"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image11.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image4.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image12.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image4.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'Financial Services\n\nCommercial Cred'",
+      "status": "PASS",
+      "detail": "From ppt_media_image65.jpeg, 1 hits, highlight: ocr_content: <em>Financial</em> <em>Services</em>\n"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image4.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image2.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Content search: 'imagination at work'",
+      "status": "PASS",
+      "detail": "From ppt_media_image3.jpeg, 3358 hits, highlight: ocr_content: <em>imagination</em> at <em>work</em>"
+    },
+    {
+      "name": "Overall OCR content searchability",
+      "status": "PASS",
+      "detail": "15/15 (100%) OCR texts found via search"
+    },
+    {
+      "name": "OCR text length stats",
+      "status": "PASS",
+      "detail": "Avg length: 32 chars, Min: 2, Max: 1288"
+    },
+    {
+      "name": "Text quality breakdown",
+      "status": "PASS",
+      "detail": "Total: 100, Good text: 100, Garbage/noise: 0, Empty w/confidence: 0"
+    },
+    {
+      "name": "Top OCR text samples:",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "  ppt_media_image18.png",
+      "status": "PASS",
+      "detail": "conf=97%, text='STOP'"
+    },
+    {
+      "name": "  ppt_media_image17.png",
+      "status": "PASS",
+      "detail": "conf=97%, text='HR'"
+    },
+    {
+      "name": "  ppt_media_image11.png",
+      "status": "PASS",
+      "detail": "conf=97%, text='End User'"
+    },
+    {
+      "name": "  ppt_media_image4.jpeg",
+      "status": "PASS",
+      "detail": "conf=97%, text='imagination at work'"
+    },
+    {
+      "name": "  ppt_media_image5.jpeg",
+      "status": "PASS",
+      "detail": "conf=97%, text='imagination at work'"
+    },
+    {
+      "name": "OCR search: 'imagination at work' (exact) 4ms",
+      "status": "PASS",
+      "detail": "3,358 hits in 4ms"
+    },
+    {
+      "name": "OCR search: 'EMERGENCY' (exact) 7ms",
+      "status": "PASS",
+      "detail": "1,424 hits in 7ms"
+    },
+    {
+      "name": "OCR search: 'Financial Services' (exact) 14ms",
+      "status": "PASS",
+      "detail": "3,515 hits in 14ms"
+    },
+    {
+      "name": "OCR search: 'GE Money' (exact) 6ms",
+      "status": "PASS",
+      "detail": "2,994 hits in 6ms"
+    },
+    {
+      "name": "OCR search: 'STOP' (exact) 93ms",
+      "status": "PASS",
+      "detail": "1,577 hits in 93ms"
+    },
+    {
+      "name": "OCR search: 'screenshot image text' (fuzzy) 78ms",
+      "status": "PASS",
+      "detail": "10,000 hits in 78ms"
+    }
+  ]
+}

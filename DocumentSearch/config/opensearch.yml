@@ -1,0 +1,72 @@
+# ============================================================================
+# OpenSearch Configuration for Enterprise Document Search
+# Optimized for 128 vCPU / 64GB RAM AWS Instance
+# JVM Heap: 12GB (optimized for high-throughput indexing)
+# ============================================================================
+
+# Cluster Configuration
+cluster.name: enterprise-document-search
+node.name: node-1
+node.roles: [ master, data, ingest ]
+
+# Network
+network.host: localhost
+http.port: 9200
+transport.port: 9300
+
+# Discovery (single node configuration)
+discovery.type: single-node
+
+# Memory Lock (prevents swapping - disable on Windows if causing issues)
+bootstrap.memory_lock: false
+
+# Paths
+path.data: ["D:\\DocumentSearch\\opensearch\\data"]
+path.logs: "D:\\DocumentSearch\\opensearch\\logs"
+
+# Thread Pools (optimized for bulk indexing)
+thread_pool:
+  write:
+    size: 32  # High for bulk indexing with 128 vCPUs
+    queue_size: 2000
+  search:
+    size: 16
+    queue_size: 1000
+  get:
+    size: 16
+    queue_size: 1000
+
+# Index Settings (defaults for new indices)
+action.auto_create_index: true
+
+# Bulk Request Limits
+http.max_content_length: 200mb  # Allow large bulk requests
+
+# Circuit Breakers (adjusted for 12GB heap)
+indices.breaker.total.limit: 85%  # 10.2GB of 12GB
+indices.breaker.request.limit: 50%  # 6GB
+indices.breaker.fielddata.limit: 40%  # 4.8GB
+
+# Performance Tuning
+indices.memory.index_buffer_size: 20%  # 2.4GB for indexing
+indices.queries.cache.size: 10%  # 1.2GB for query cache
+
+# NOTE: Index-level settings (like translog and merge settings) should be 
+# applied per-index via the index template or create index API, not here.
+# They will be set by the application when creating the index.
+
+# Search Settings
+search.max_buckets: 65535
+
+# Security (disabled for localhost - enable in production)
+plugins.security.disabled: true
+
+# CORS (for development - restrict in production)
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
+http.cors.allow-headers: X-Requested-With, Content-Type, Content-Length, Authorization
+
+# Logging
+logger.level: INFO
+logger.org.opensearch: INFO
