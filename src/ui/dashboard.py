@@ -440,8 +440,22 @@ def render_dashboard() -> None:
         page_title="Document Search System",
         page_icon=":page_facing_up:",
         layout="wide",
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="collapsed"
     )
+
+    # Initialize session state keys to prevent KeyErrors on newer python/streamlit versions
+    if "purge_days_input" not in st.session_state:
+        st.session_state["purge_days_input"] = 30
+    if "show_as_files" not in st.session_state:
+        st.session_state["show_as_files"] = False
+    if "snippet_status_filter" not in st.session_state:
+        st.session_state["snippet_status_filter"] = "All Statuses"
+    if "snippet_role_filter" not in st.session_state:
+        st.session_state["snippet_role_filter"] = "All Roles"
+    if "review_selected_smart_id" not in st.session_state:
+        st.session_state["review_selected_smart_id"] = ""
+    if "review_prev_selected_smart_id" not in st.session_state:
+        st.session_state["review_prev_selected_smart_id"] = ""
 
     # Custom CSS for better styling
     st.markdown("""

@@ -4,6 +4,7 @@ Includes NLP text correction after OCR
 """
 
 import io
+from PIL import Image
 import json
 import os
 import time
@@ -20,6 +21,7 @@ from core.logging_manager import get_logger
 from core.config_manager import get_config
 from core.queue_manager import get_queue_manager
 from core.constants import ErrorType
+import sqlite3
 from core.reporting_manager import (
     AuditEvent,
     FileStateRow,
@@ -32,6 +34,7 @@ from core.reporting_manager import (
     create_snippet_review,
     update_snippet_review_status,
     get_approved_features_for_doc,
+    log_snippet_suppression,
 )
 
 from .image_preprocessor_advanced import ImagePreprocessor
@@ -146,7 +149,7 @@ class OCRWorker:
         try:
             from extraction.accuracy_analyzer import AccuracyAnalyzer, _empty_metrics
             self.accuracy_analyzer = AccuracyAnalyzer(
-                enable_yolo=True, enable_doctr=True
+                enable_yolo=True, enable_doctr=False
             )
             self._empty_metrics_fn = _empty_metrics
             logger.info(f"Worker {worker_id}: Accuracy analyzer initialized (tier: {self.accuracy_analyzer.tier})")
@@ -413,7 +416,7 @@ class OCRWorker:
                         prep_bytes = result[2]
                         with open(file_path, "rb") as f:
                             original_bytes = f.read()
-                        acc_metrics = self.accuracy_analyzer.analyze_ocr_page(original_bytes, prep_bytes)
+                        acc_metrics = self.accuracy_analyzer.analyze_ocr_page(original_bytes, prep_bytes, smart_id=smart_id, page_num=1)
                         if acc_metrics and "accuracy_loss_json" in acc_metrics:
                             self._process_visual_snippets(
                                 smart_id=smart_id,
@@ -826,7 +829,7 @@ class OCRWorker:
                             # Run page-level accuracy analysis
                             if self.accuracy_analyzer:
                                 try:
-                                    metrics = self.accuracy_analyzer.analyze_ocr_page(page_bytes, prep_bytes)
+                                    metrics = self.accuracy_analyzer.analyze_ocr_page(page_bytes, prep_bytes, smart_id=smart_id, page_num=page_num)
                                     metrics["page"] = page_num
                                     page_metrics_list.append(metrics)
                                     
@@ -946,6 +949,7 @@ class OCRWorker:
         page_bytes: bytes,
         accuracy_loss_json_str: str,
         file_path: str = "",
+        db_conn: Optional[sqlite3.Connection] = None,
     ) -> None:
         """Parse accuracy_loss_json, crop visual snippets (signatures, seals, logos),
         assign simple static reviewer roles, calculate CNN embedding feature vectors,
@@ -1005,6 +1009,7 @@ class OCRWorker:
                 snippets = [
                     s for s in snippets
                     if str((s or {}).get("type", "logo")).lower() in allowed_types
+                    or str((s or {}).get("type", "logo")).lower() == "faded_text"
                 ]
 
             min_impact_by_type = {
@@ -1012,6 +1017,7 @@ class OCRWorker:
                 "logo": float(preprocessing_cfg.get("logo_min_impact", 0.0) or 0.0),
                 "stamp": float(preprocessing_cfg.get("stamp_min_impact", 0.0) or 0.0),
                 "text_anomaly": float(preprocessing_cfg.get("text_anomaly_min_impact", 0.0) or 0.0),
+                "faded_text": float(preprocessing_cfg.get("faded_text_min_impact", 0.0) or 0.0),
             }
 
             impact_filtered: List[Dict[str, Any]] = []
@@ -1150,12 +1156,23 @@ class OCRWorker:
                 bbox = snippet.get("bbox", [])
                 impact = snippet.get("impact", 0.0)
                 force_keep = bool(snippet.get("force_keep", False))
+                if snippet_type == "faded_text":
+                    force_keep = True
                 if len(bbox) != 4 or impact <= 0.0:
                     continue
 
                 # Hard suppression: only skip truly microscopic impacts (dust/single pixels).
                 # Real cursive signatures on large pages can have low area ratios.
                 if (not force_keep) and snippet_type == "signature" and float(impact) <= 0.03:
+                    log_snippet_suppression(
+                        smart_id=smart_id,
+                        page_num=page_num,
+                        bbox_json=json.dumps(bbox),
+                        suppressed_by="hard_impact_limit",
+                        snippet_type=snippet_type,
+                        accuracy_impact=impact,
+                        db_conn=db_conn,
+                    )
                     continue
 
                 # Crop coordinates safety check (bounding box inside page area)
@@ -1187,12 +1204,36 @@ class OCRWorker:
                         is_likely_artifact = True  # Too tiny
 
                 if (not force_keep) and is_likely_artifact:
+                    log_snippet_suppression(
+                        smart_id=smart_id,
+                        page_num=page_num,
+                        bbox_json=json.dumps(bbox),
+                        suppressed_by="artifact_heuristic",
+                        snippet_type=snippet_type,
+                        accuracy_impact=impact,
+                        db_conn=db_conn,
+                    )
                     continue
 
-                cropped = img.crop((x1, y1, x2, y2))
+                # Apply padding scaling to crop
+                px1, py1, px2, py2 = _apply_crop_padding(x1, y1, x2, y2, w, h)
+                cropped = img.crop((px1, py1, px2, py2))
+                
+                # Apply deskewing and resolution enforcement
+                cropped = _deskew_crop(cropped)
+                cropped = _ensure_minimum_resolution(cropped)
 
                 # Filter sparse dot/blob noise that can look like signatures in coarse detectors.
                 if (not force_keep) and self._is_sparse_noise_visual_snippet(cropped, snippet_type):
+                    log_snippet_suppression(
+                        smart_id=smart_id,
+                        page_num=page_num,
+                        bbox_json=json.dumps(bbox),
+                        suppressed_by="sparse_noise_filter",
+                        snippet_type=snippet_type,
+                        accuracy_impact=impact,
+                        db_conn=db_conn,
+                    )
                     continue
 
                 # Filter printed/digital font text falsely detected as signatures.
@@ -1202,6 +1243,15 @@ class OCRWorker:
                     logger.info(
                         "Worker %s: Skipping printed-font crop for %s page %s idx %s",
                         self.worker_id, smart_id, page_num, idx,
+                    )
+                    log_snippet_suppression(
+                        smart_id=smart_id,
+                        page_num=page_num,
+                        bbox_json=json.dumps(bbox),
+                        suppressed_by="printed_font_classifier",
+                        snippet_type=snippet_type,
+                        accuracy_impact=impact,
+                        db_conn=db_conn,
                     )
                     continue
 
@@ -1213,47 +1263,104 @@ class OCRWorker:
                 # Save cropped image on disk
                 cropped.save(str(snippet_path), format="PNG")
 
+                if snippet_type == "faded_text":
+                    ocr_res = self.tesseract.extract_text(str(snippet_path), psm="6")
+                    if ocr_res:
+                        text, conf = ocr_res
+                        alnum = re.sub(r'[^A-Za-z0-9]', '', text)
+                        if len(alnum) >= 3 and float(conf) >= 70.0:
+                            log_snippet_suppression(
+                                smart_id=smart_id,
+                                page_num=page_num,
+                                bbox_json=json.dumps(bbox),
+                                suppressed_by="tesseract_high_confidence",
+                                snippet_type=snippet_type,
+                                accuracy_impact=impact,
+                                db_conn=db_conn,
+                            )
+                            try:
+                                os.remove(str(snippet_path))
+                            except OSError:
+                                pass
+                            continue
+
                 # If crop is OCR-readable text, keep it in OCR flow and do not send to visual review.
                 if (not force_keep) and self._is_text_like_visual_snippet(str(snippet_path), snippet_type):
+                    log_snippet_suppression(
+                        smart_id=smart_id,
+                        page_num=page_num,
+                        bbox_json=json.dumps(bbox),
+                        suppressed_by="text_like_classifier",
+                        snippet_type=snippet_type,
+                        accuracy_impact=impact,
+                        db_conn=db_conn,
+                    )
                     try:
                         os.remove(str(snippet_path))
                     except OSError:
                         pass
                     continue
 
-                # Generate a unique review ID
-                review_id = f"{smart_id}_p{page_num}_{snippet_type}_{idx}"
+                # Generate a unique content-addressed review ID
+                review_id = _make_review_id(smart_id, page_num, bbox, snippet_type)
+
                 
+                # Classify/extract text from the snippet first
+                tess_res = ocr_res if (snippet_type == "faded_text" and 'ocr_res' in locals() and ocr_res) else self.tesseract.extract_text(str(snippet_path), psm="6")
+                extracted_val = tess_res[0] if tess_res else None
+
                 # Check for approved templates using Cosine Similarity matching
                 is_auto_accepted = False
                 matched_vector_path = None
-                if self.visual_memory and approved_vectors_dir.exists():
-                    try:
-                        # Cosine similarity matching against previously approved snippets of this type
-                        # If a match is found (similarity > 0.88), automatically approve it
-                        is_match, matched_path = self.visual_memory.match_snippet(
-                            candidate_image_path=str(snippet_path),
-                            approved_vectors_dir=str(approved_vectors_dir),
-                            threshold=0.88
-                        )
-                        if is_match:
-                            is_auto_accepted = True
-                            matched_vector_path = matched_path
-                            logger.info(f"VisualMemoryEngine: Snippet {review_id} matches approved template! Auto-accepting.")
-                    except Exception as e:
-                        logger.error(f"VisualMemoryEngine: Error during template matching for {review_id}: {e}")
+                global_vectors_dir = approved_vectors_root / "global"
+                ELIGIBLE_AUTO_TAG_TYPES = {"signature", "stamp", "logo"}
+                if self.visual_memory and snippet_type in ELIGIBLE_AUTO_TAG_TYPES:
+                    # 1. Local matching (Threshold 0.88)
+                    if approved_vectors_dir.exists():
+                        try:
+                            is_match, matched_path = self.visual_memory.match_snippet(
+                                candidate_image_path=str(snippet_path),
+                                approved_vectors_dir=str(approved_vectors_dir),
+                                threshold=0.88,
+                                candidate_text=extracted_val,
+                            )
+                            if is_match:
+                                is_auto_accepted = True
+                                matched_vector_path = matched_path
+                                logger.info(f"VisualMemoryEngine: Snippet {review_id} matches approved local template! Auto-accepting.")
+                        except Exception as e:
+                            logger.error(f"VisualMemoryEngine: Error during local template matching for {review_id}: {e}")
+
+                    # 2. Global matching (Threshold 0.90)
+                    if not is_auto_accepted and global_vectors_dir.exists():
+                        try:
+                            is_match, matched_path = self.visual_memory.match_snippet_global(
+                                candidate_image_path=str(snippet_path),
+                                global_vectors_dir=str(global_vectors_dir),
+                                threshold=0.90,
+                                candidate_text=extracted_val,
+                            )
+                            if is_match:
+                                is_auto_accepted = True
+                                matched_vector_path = matched_path
+                                logger.info(f"VisualMemoryEngine: Snippet {review_id} matches approved global template! Auto-accepting.")
+                        except Exception as e:
+                            logger.error(f"VisualMemoryEngine: Error during global template matching for {review_id}: {e}")
+
+                # Classify the snippet with multi-signal classifier
+                snippet_type_refined, reviewer_role = self.classify_snippet_deficit(
+                    cropped_pil_img=cropped,
+                    bbox=bbox,
+                    page_dims=(w, h),
+                    initial_type=snippet_type,
+                    tesseract_result=tess_res,
+                    snippet_path=str(snippet_path)
+                )
+
+                extracted_val = tess_res[0] if tess_res else None
 
                 if is_auto_accepted:
                     # Register and automatically accept the review
-                    if force_keep and snippet_type == "signature":
-                        snippet_type_refined = "signature"
-                        reviewer_role = self._get_reviewer_role("signature")
-                    else:
-                        snippet_type_refined, reviewer_role = self._classify_snippet_enhanced(
-                            snippet_type=snippet_type,
-                            bbox=bbox,
-                            page_dims=(w, h)
-                        )
                     create_snippet_review(
                         review_id=review_id,
                         smart_id=smart_id,
@@ -1262,21 +1369,13 @@ class OCRWorker:
                         snippet_path=str(snippet_path),
                         bounding_box=bbox,
                         accuracy_impact=impact,
-                        reviewer_role=reviewer_role
+                        reviewer_role=reviewer_role,
+                        deficit_category=snippet_type_refined,
+                        extracted_text=extracted_val,
                     )
                     update_snippet_review_status(review_id, status="accepted", feature_vector_path=matched_vector_path)
                 else:
                     # Standard pending human-in-the-loop review
-                    # Classify snippet with enhanced categorization
-                    if force_keep and snippet_type == "signature":
-                        snippet_type_refined = "signature"
-                        reviewer_role = self._get_reviewer_role("signature")
-                    else:
-                        snippet_type_refined, reviewer_role = self._classify_snippet_enhanced(
-                            snippet_type=snippet_type,
-                            bbox=bbox,
-                            page_dims=(w, h)
-                        )
                     create_snippet_review(
                         review_id=review_id,
                         smart_id=smart_id,
@@ -1285,7 +1384,9 @@ class OCRWorker:
                         snippet_path=str(snippet_path),
                         bounding_box=bbox,
                         accuracy_impact=impact,
-                        reviewer_role=reviewer_role
+                        reviewer_role=reviewer_role,
+                        deficit_category=snippet_type_refined,
+                        extracted_text=extracted_val,
                     )
                     update_snippet_review_status(review_id, status="pending")
 
@@ -1293,39 +1394,172 @@ class OCRWorker:
         except Exception as exc:
             logger.error(f"Failed to process visual snippets for {smart_id}: {exc}")
 
-    def _classify_snippet_enhanced(self, snippet_type: str, bbox: List[float], page_dims: tuple) -> tuple:
-        """Enhanced snippet classification with improved categorization.
-        Returns (refined_snippet_type, reviewer_role) for more sensible review assignments.
-        """
-        if not bbox or len(bbox) != 4:
-            return snippet_type, self._get_reviewer_role(snippet_type)
+    def classify_snippet_deficit(
+        self,
+        cropped_pil_img,
+        bbox: List[int],
+        page_dims: Tuple[int, int],
+        initial_type: str,
+        tesseract_result: Optional[Tuple[str, float]] = None,
+        snippet_path: Optional[str] = None,
+    ) -> Tuple[str, str]:
+        """Classify visual snippet deficit type using 5 independent signals and deep templates."""
+        # Config roles
+        roles = {
+            "signature": "Contract Auditor",
+            "stamp": "Compliance Officer",
+            "logo": "Brand Integrity Reviewer",
+            "handwritten": "Transcription Auditor",
+            "faded_text": "Faded Text Specialist",
+            "text_anomaly": "Text Specialist",
+            "noise": "Quality Control",
+            "unknown": "Document Reviewer",
+        }
+        if hasattr(self, "config") and self.config and hasattr(self.config, "ocr"):
+            roles_cfg = getattr(self.config.ocr, "reviewer_roles", {}) or {}
+            for k, v in roles_cfg.items():
+                roles[k] = v
 
+        def _get_role(category: str) -> str:
+            return roles.get(category, roles.get("unknown", "Document Reviewer"))
+
+        # S0: Deep Learning Template Matching (Nearest Neighbor)
+        if getattr(self, "visual_memory", None) and snippet_path:
+            try:
+                approved_vectors_root = Path(self.config.paths.working_root) / "data" / "visual_memory"
+                global_vectors_dir = approved_vectors_root / "global"
+                if global_vectors_dir.exists():
+                    is_match, matched_path = self.visual_memory.match_snippet_global(
+                        candidate_image_path=str(snippet_path),
+                        global_vectors_dir=str(global_vectors_dir),
+                        threshold=0.88
+                    )
+                    if is_match and matched_path:
+                        matched_id = Path(matched_path).stem
+                        db_path = self.config.paths.working_root + "/audit/audit.db"
+                        matched_type = _lookup_snippet_type(db_path, matched_id)
+                        if matched_type:
+                            logger.info(f"VisualMemoryEngine: Snippet classified as '{matched_type}' matching approved template {matched_id}")
+                            return matched_type, _get_role(matched_type)
+            except Exception as exc:
+                logger.error(f"VisualMemoryEngine: Error during classifier template matching: {exc}")
+
+        # Check if pre-trained SVM snippet classifier exists
+        classifier_model_path = Path("models/snippet_classifier.pkl")
+        if getattr(self, "_snippet_classifier", None) is None:
+            if classifier_model_path.exists():
+                try:
+                    import pickle
+                    with open(classifier_model_path, "rb") as f:
+                        self._snippet_classifier = pickle.load(f)
+                    logger.info("OCRWorker: Loaded trained SVM snippet classifier model")
+                except Exception as exc:
+                    logger.warning(f"OCRWorker: Failed to load SVM snippet classifier: {exc}")
+                    self._snippet_classifier = None
+
+        # Run SVM model prediction on the extracted feature vector
+        if self._snippet_classifier is not None and getattr(self, "visual_memory", None) and snippet_path:
+            try:
+                vector = self.visual_memory.extract_vector(snippet_path)
+                if vector is not None:
+                    probs = self._snippet_classifier.predict_proba(vector.reshape(1, -1))[0]
+                    classes = self._snippet_classifier.classes_
+                    best_idx = np.argmax(probs)
+                    best_prob = probs[best_idx]
+                    best_class = str(classes[best_idx])
+                    
+                    if best_prob >= 0.65:
+                        logger.info(f"OCRWorker: Snippet {snippet_path} classified as '{best_class}' via SVM with probability {best_prob:.2f}")
+                        return best_class, _get_role(best_class)
+            except Exception as exc:
+                logger.warning(f"OCRWorker: SVM prediction failed: {exc}")
+
+        arr = np.array(cropped_pil_img.convert("L"))
+        h, w = arr.shape
         x1, y1, x2, y2 = bbox
-        w, h = page_dims
-        box_w = max(1, x2 - x1)
-        box_h = max(1, y2 - y1)
-        width_ratio = box_w / max(1, w)
-        height_ratio = box_h / max(1, h)
-        aspect_ratio = box_w / max(1, box_h)
+        pw, ph = page_dims
 
-        # Heuristic: Detect if this is likely noisy/unclear text
-        # Narrow but tall/medium height suggests OCR text anomaly
-        if snippet_type == "signature" and aspect_ratio < 2.0 and height_ratio > 0.02:
-            return "text_anomaly", "Text Specialist"
+        # S1: OCR confidence
+        ocr_conf = 0.0
+        ocr_alnum_len = 0
+        if tesseract_result:
+            text, conf = tesseract_result
+            ocr_conf = float(conf or 0.0)
+            cleaned = re.sub(r"\s+", "", text)
+            ocr_alnum_len = len(re.sub(r'[^A-Za-z0-9]', '', cleaned))
 
+        # S2: Color entropy
+        color_arr = np.array(cropped_pil_img.convert("RGB"))
+        r_std = np.std(color_arr[:,:,0].astype(float))
+        g_std = np.std(color_arr[:,:,1].astype(float))
+        b_std = np.std(color_arr[:,:,2].astype(float))
+        has_color = (abs(r_std - g_std) > 8.0 or abs(g_std - b_std) > 8.0)
+
+        # S3: Stroke width CV via distance transform
+        _, bw = cv2.threshold(arr, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        dist = cv2.distanceTransform(bw, cv2.DIST_L2, 5)
+        stroke_vals = dist[bw > 0]
+        sw_cv = (np.std(stroke_vals) / max(np.mean(stroke_vals), 0.001)) if len(stroke_vals) > 10 else 0.5
+
+        # S4: Circularity
+        contours, _ = cv2.findContours(bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        best_circ = 0.0
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            perim = cv2.arcLength(cnt, True)
+            if perim > 0 and area > 50:
+                circ = 4 * np.pi * area / (perim ** 2)
+                best_circ = max(best_circ, circ)
+
+        # S5: Spatial heuristics
+        vertical_pos = (y1 + y2) / 2 / max(ph, 1)   # 0 = top, 1 = bottom
+        horizontal_margin = min(x1/max(pw,1), (pw-x2)/max(pw,1))  # 0 = center, 0.5 = full margin
+        aspect = (x2-x1) / max(y2-y1, 1)
+
+        # === Decision Logic ===
+
+        # Already determined as faded_text by upstream detection
+        if initial_type == "faded_text":
+            return "faded_text", _get_role("faded_text")
+
+        # High OCR confidence = machine-readable text
+        if ocr_conf >= 70.0 and ocr_alnum_len >= 4:
+            return "text_anomaly", _get_role("text_anomaly")
+
+        # Circular contour + colored ink = stamp/seal
+        if best_circ > 0.45 or (best_circ > 0.30 and has_color):
+            return "stamp", _get_role("stamp")
+
+        # Colored ink + large area + complex gradient = logo
+        if has_color and (x2-x1)*(y2-y1) > pw*ph*0.02:
+            return "logo", _get_role("logo")
+
+        # High stroke-width variance = handwriting (not signature if text-like content)
+        if sw_cv > 0.65:
+            if aspect < 4.0 or vertical_pos < 0.4 or horizontal_margin > 0.15:
+                return "handwritten", _get_role("handwritten")
+            else:
+                return "signature", _get_role("signature")
+
+        # Low OCR, low color, moderate strokes, in lower portion = signature
+        if vertical_pos > 0.55 and sw_cv > 0.40 and not has_color:
+            return "signature", _get_role("signature")
+
+        # Low OCR confidence fallback for text regions
+        if tesseract_result and ocr_conf < 30.0 and initial_type in ("text_anomaly", "text", "faded_text", "unknown"):
+            return "faded_text", _get_role("faded_text")
+
+        # Default fallback
+        return initial_type, _get_role(initial_type)
+
+    def _classify_snippet_enhanced(self, snippet_type: str, bbox: List[float], page_dims: tuple) -> tuple:
+        """Fallback for backward compatibility."""
         return snippet_type, self._get_reviewer_role(snippet_type)
 
     @staticmethod
     def _get_reviewer_role(snippet_type: str) -> str:
-        """Map snippet types to reviewer roles (extended categories)"""
-        if snippet_type == "signature":
-            return "Contract Auditor"
-        elif snippet_type == "stamp":
-            return "Operations Manager"
-        elif snippet_type == "text_anomaly":
-            return "Text Specialist"
-        else:  # "logo" or unknown
-            return "Marketing Reviewer"
+        """Static reviewer roles mappings."""
+        return _role_for(snippet_type)
 
     def _is_text_like_visual_snippet(self, snippet_path: str, snippet_type: str) -> bool:
         """Return True when a visual snippet is actually OCR-readable text.
@@ -1336,7 +1570,7 @@ class OCRWorker:
             return False
 
         try:
-            ocr_result = self.tesseract.extract_text(snippet_path)
+            ocr_result = self.tesseract.extract_text(snippet_path, psm="6")
             if not ocr_result:
                 return False
 
@@ -1370,7 +1604,7 @@ class OCRWorker:
             if has_meaningful_text or has_long_token or looks_like_printed_word:
                 logger.info(
                     "Worker %s: Skipping visual review for text-like snippet %s (type=%s, conf=%.2f, text='%s')",
-                    self.worker_id,
+                    getattr(self, "worker_id", "unknown"),
                     Path(snippet_path).name,
                     snippet_type,
                     conf,
@@ -1407,7 +1641,7 @@ class OCRWorker:
             col_coverage = float(np.count_nonzero(np.any(ink_mask, axis=0)) / max(1, w))
 
             # Very sparse marks, pepper noise, or tiny disconnected blobs.
-            if ink_ratio < 0.004:
+            if ink_ratio <= 0.004:
                 return True
             if ink_ratio < 0.010 and row_coverage < 0.35 and col_coverage < 0.35:
                 return True
@@ -1519,7 +1753,7 @@ class OCRWorker:
                 with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
                     cropped_img.save(tmp.name, format="PNG")
                     tmp_path = tmp.name
-                ocr_result = self.tesseract.extract_text(tmp_path)
+                ocr_result = self.tesseract.extract_text(tmp_path, psm="6")
                 if ocr_result:
                     _, conf = ocr_result
                     if float(conf or 0) >= 60.0:
@@ -1879,3 +2113,90 @@ class OCRWorker:
             'elapsed_seconds': elapsed,
             'rate_per_second': self.files_processed / elapsed if elapsed > 0 else 0
         }
+
+
+def _role_for(deficit_category: str) -> str:
+    """Config-driven role mapping. Defaults to document review roles if config is missing."""
+    ROLES = {
+        "signature":    "Contract Auditor",
+        "stamp":        "Compliance Officer",
+        "logo":         "Brand Integrity Reviewer",
+        "handwritten":  "Transcription Auditor",
+        "faded_text":   "Faded Text Specialist",
+        "text_anomaly": "Text Specialist",
+        "noise":        "Quality Control",
+    }
+    return ROLES.get(deficit_category, "Document Reviewer")
+
+
+def _make_review_id(smart_id: str, page_num: int, bbox: List[float], snippet_type: str) -> str:
+    """Generate a unique content-addressed review ID."""
+    import hashlib
+    bbox_str = ",".join(str(int(v)) for v in bbox)
+    raw_str = f"{smart_id}_p{page_num}_{snippet_type}_{bbox_str}"
+    h = hashlib.sha256(raw_str.encode("utf-8")).hexdigest()
+    return f"{smart_id}_p{page_num}_{snippet_type}_{h[:8]}"
+
+
+CROP_PADDING_RATIO = 0.08   # 8% of bounding box size, max 20px
+MIN_CROP_DIMENSION = 80     # pixels
+
+
+def _apply_crop_padding(x1: int, y1: int, x2: int, y2: int, w: int, h: int) -> Tuple[int, int, int, int]:
+    """Applies an 8% padding scaling (up to max 20px) around coordinates."""
+    box_w = x2 - x1
+    box_h = y2 - y1
+    pad_x = min(int(box_w * CROP_PADDING_RATIO), 20)
+    pad_y = min(int(box_h * CROP_PADDING_RATIO), 20)
+    return (
+        max(0, x1 - pad_x),
+        max(0, y1 - pad_y),
+        min(w, x2 + pad_x),
+        min(h, y2 + pad_y),
+    )
+
+
+def _ensure_minimum_resolution(pil_crop: Image.Image) -> Image.Image:
+    """Upscales small crops to at least 80x80 pixels using Lanczos filtering."""
+    w, h = pil_crop.size
+    if w < MIN_CROP_DIMENSION or h < MIN_CROP_DIMENSION:
+        scale = MIN_CROP_DIMENSION / min(w, h)
+        new_w = max(MIN_CROP_DIMENSION, int(w * scale))
+        new_h = max(MIN_CROP_DIMENSION, int(h * scale))
+        resample_filter = Image.Resampling.LANCZOS if hasattr(Image, "Resampling") else Image.LANCZOS
+        return pil_crop.resize((new_w, new_h), resample_filter)
+    return pil_crop
+
+
+def _deskew_crop(pil_crop: Image.Image) -> Image.Image:
+    """Detect and correct skew angle on individual snippet crop."""
+    arr = np.array(pil_crop.convert("L"))
+    _, bw = cv2.threshold(arr, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    lines = cv2.HoughLinesP(bw, 1, np.pi/180, threshold=30, minLineLength=20, maxLineGap=5)
+    if lines is None or len(lines) == 0:
+        return pil_crop
+    angles = [np.degrees(np.arctan2(y2-y1, x2-x1)) 
+              for [[x1,y1,x2,y2]] in lines 
+              if abs(np.degrees(np.arctan2(y2-y1, x2-x1))) < 30]
+    if not angles:
+        return pil_crop
+    median_angle = float(np.median(angles))
+    if abs(median_angle) < 0.5:    # skip trivial corrections
+        return pil_crop
+    return pil_crop.rotate(-median_angle, expand=True, fillcolor=(255,255,255))
+
+
+def _lookup_snippet_type(db_path: str, review_id: str) -> Optional[str]:
+    """Look up the snippet_type for a given review_id in the SQLite database."""
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("SELECT snippet_type FROM snippet_reviews WHERE review_id = ?", (review_id,))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            return row[0]
+    except Exception:
+        pass
+    return None

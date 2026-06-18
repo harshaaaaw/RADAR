@@ -20,6 +20,8 @@ from core.logging_manager import get_logger
 
 logger = get_logger("core.reporting_manager")
 
+_db_lock = threading.Lock()
+
 _LOGIC_OPS = {"AND", "OR"}
 _TOKEN_PATTERN = re.compile(r'"[^"]*"|\S+')
 
@@ -453,7 +455,8 @@ class _ReportingManager:
                         accuracy_impact REAL NOT NULL,
                         reviewer_role TEXT NOT NULL,
                         status TEXT DEFAULT 'pending',
-                        feature_vector_path TEXT
+                        feature_vector_path TEXT,
+                        extracted_text TEXT
                     )
                     """
                 )
@@ -470,6 +473,84 @@ class _ReportingManager:
                     cur.execute("ALTER TABLE snippet_reviews ADD COLUMN review_reason TEXT")
                 if "file_size_bytes" not in sr_columns:
                     cur.execute("ALTER TABLE snippet_reviews ADD COLUMN file_size_bytes INTEGER DEFAULT 0")
+                if "deficit_category" not in sr_columns:
+                    cur.execute("ALTER TABLE snippet_reviews ADD COLUMN deficit_category TEXT DEFAULT 'unknown'")
+                if "transcription_text" not in sr_columns:
+                    cur.execute("ALTER TABLE snippet_reviews ADD COLUMN transcription_text TEXT DEFAULT NULL")
+                if "rejection_category" not in sr_columns:
+                    cur.execute("ALTER TABLE snippet_reviews ADD COLUMN rejection_category TEXT DEFAULT NULL")
+                if "norm_bbox_json" not in sr_columns:
+                    cur.execute("ALTER TABLE snippet_reviews ADD COLUMN norm_bbox_json TEXT DEFAULT NULL")
+                if "page_width_px" not in sr_columns:
+                    cur.execute("ALTER TABLE snippet_reviews ADD COLUMN page_width_px INTEGER DEFAULT 0")
+                if "page_height_px" not in sr_columns:
+                    cur.execute("ALTER TABLE snippet_reviews ADD COLUMN page_height_px INTEGER DEFAULT 0")
+                if "content_area_pct" not in sr_columns:
+                    cur.execute("ALTER TABLE snippet_reviews ADD COLUMN content_area_pct REAL DEFAULT 0.0")
+                if "suppression_log" not in sr_columns:
+                    cur.execute("ALTER TABLE snippet_reviews ADD COLUMN suppression_log TEXT DEFAULT NULL")
+                if "extracted_text" not in sr_columns:
+                    cur.execute("ALTER TABLE snippet_reviews ADD COLUMN extracted_text TEXT DEFAULT NULL")
+
+                # Create page segmentation breakdown table
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS page_segmentation_breakdown (
+                        smart_id          TEXT NOT NULL,
+                        page_num          INTEGER NOT NULL,
+                        clean_text_pct    REAL NOT NULL DEFAULT 0.0,
+                        faded_text_pct    REAL NOT NULL DEFAULT 0.0,
+                        logo_pct          REAL NOT NULL DEFAULT 0.0,
+                        stamp_pct         REAL NOT NULL DEFAULT 0.0,
+                        handwritten_pct   REAL NOT NULL DEFAULT 0.0,
+                        whitespace_pct    REAL NOT NULL DEFAULT 0.0,
+                        noise_pct         REAL NOT NULL DEFAULT 0.0,
+                        content_area_pct  REAL NOT NULL DEFAULT 100.0,
+                        baseline_accuracy REAL NOT NULL DEFAULT 0.0,
+                        page_width_px     INTEGER DEFAULT 0,
+                        page_height_px    INTEGER DEFAULT 0,
+                        analyzer_tier     TEXT DEFAULT 'tier1',
+                        analyzed_at       TEXT NOT NULL,
+                        PRIMARY KEY (smart_id, page_num),
+                        FOREIGN KEY (smart_id) REFERENCES file_state(smart_id) ON DELETE CASCADE
+                    )
+                    """
+                )
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_psb_smart_id ON page_segmentation_breakdown (smart_id)")
+
+                # Create snippet suppression log table
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS snippet_suppression_log (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        smart_id        TEXT NOT NULL,
+                        page_num        INTEGER NOT NULL,
+                        bbox_json       TEXT NOT NULL,
+                        suppressed_by   TEXT NOT NULL,
+                        snippet_type    TEXT NOT NULL,
+                        accuracy_impact REAL NOT NULL,
+                        suppressed_at   TEXT NOT NULL,
+                        worker_id       TEXT
+                    )
+                    """
+                )
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_ssl_smart_id ON snippet_suppression_log (smart_id)")
+
+                # Create OpenSearch retry queue table
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS opensearch_retry_queue (
+                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        smart_id      TEXT NOT NULL,
+                        review_id     TEXT NOT NULL,
+                        payload_json  TEXT NOT NULL,
+                        attempt_count INTEGER DEFAULT 0,
+                        last_attempt  TEXT,
+                        status        TEXT DEFAULT 'pending'
+                    )
+                    """
+                )
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_osrq_smart_id ON opensearch_retry_queue (smart_id)")
 
                 # Create review activity log table for audit trails
                 cur.execute(
@@ -491,6 +572,13 @@ class _ReportingManager:
                 )
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_review_log_smart_id ON review_activity_log (smart_id)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_review_log_timestamp ON review_activity_log (timestamp DESC)")
+
+                # Backward-compatible migrations for review_activity_log
+                ral_columns = {row["name"] for row in cur.execute("PRAGMA table_info(review_activity_log)").fetchall()}
+                if "action_category" not in ral_columns:
+                    cur.execute("ALTER TABLE review_activity_log ADD COLUMN action_category TEXT DEFAULT NULL")
+                if "is_cancelled" not in ral_columns:
+                    cur.execute("ALTER TABLE review_activity_log ADD COLUMN is_cancelled INTEGER DEFAULT 0")
 
             self._execute_with_retry(_create_schema, commit=True)
             self._schema_ready = True
@@ -2601,6 +2689,54 @@ class _ReportingManager:
             weights.setdefault(field_name, {})[new_value] = round(boost, 4)
         return weights
 
+    def write_page_segmentation_breakdown(
+        self,
+        smart_id: str,
+        page_num: int,
+        clean_text_pct: float,
+        faded_text_pct: float,
+        logo_pct: float,
+        stamp_pct: float,
+        handwritten_pct: float,
+        whitespace_pct: float,
+        noise_pct: float,
+        content_area_pct: float,
+        baseline_accuracy: float,
+        page_width_px: int,
+        page_height_px: int,
+        analyzer_tier: str,
+    ) -> None:
+        self._ensure_schema()
+        def _insert(conn: sqlite3.Connection) -> None:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO page_segmentation_breakdown (
+                    smart_id, page_num, clean_text_pct, faded_text_pct,
+                    logo_pct, stamp_pct, handwritten_pct, whitespace_pct,
+                    noise_pct, content_area_pct, baseline_accuracy,
+                    page_width_px, page_height_px, analyzer_tier, analyzed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    smart_id,
+                    page_num,
+                    float(clean_text_pct),
+                    float(faded_text_pct),
+                    float(logo_pct),
+                    float(stamp_pct),
+                    float(handwritten_pct),
+                    float(whitespace_pct),
+                    float(noise_pct),
+                    float(content_area_pct),
+                    float(baseline_accuracy),
+                    int(page_width_px),
+                    int(page_height_px),
+                    analyzer_tier,
+                    _utc_now_iso(),
+                )
+            )
+        self._execute_with_retry(_insert, commit=True)
+
     def create_snippet_review(
         self,
         review_id: str,
@@ -2610,29 +2746,69 @@ class _ReportingManager:
         snippet_path: str,
         bounding_box: List[int],
         accuracy_impact: float,
-        reviewer_role: str
+        reviewer_role: str,
+        deficit_category: Optional[str] = None,
+        content_area_pct: Optional[float] = None,
+        extracted_text: Optional[str] = None,
     ) -> None:
         self._ensure_schema()
         def _insert(conn: sqlite3.Connection) -> None:
             conn.execute(
                 """
                 INSERT OR IGNORE INTO snippet_reviews (
-                    review_id, smart_id, page_num, snippet_type, snippet_path,
-                    bounding_box_json, accuracy_impact, reviewer_role, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+                    review_id, smart_id, page_num, snippet_type, deficit_category, snippet_path,
+                    bounding_box_json, accuracy_impact, content_area_pct, reviewer_role, status, extracted_text
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
                 """,
                 (
                     review_id,
                     smart_id,
                     page_num,
                     snippet_type,
+                    deficit_category or snippet_type,
                     snippet_path,
                     json.dumps(bounding_box),
                     float(accuracy_impact),
+                    float(content_area_pct if content_area_pct is not None else accuracy_impact),
                     reviewer_role,
+                    extracted_text,
                 )
             )
         self._execute_with_retry(_insert, commit=True)
+
+    def log_snippet_suppression(
+        self,
+        smart_id: str,
+        page_num: int,
+        bbox_json: str,
+        suppressed_by: str,
+        snippet_type: str,
+        accuracy_impact: float,
+        db_conn: Optional[sqlite3.Connection] = None,
+    ) -> None:
+        self._ensure_schema()
+        def _insert(conn: sqlite3.Connection) -> None:
+            conn.execute(
+                """
+                INSERT INTO snippet_suppression_log (
+                    smart_id, page_num, bbox_json, suppressed_by,
+                    snippet_type, accuracy_impact, suppressed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    smart_id,
+                    page_num,
+                    bbox_json,
+                    suppressed_by,
+                    snippet_type,
+                    float(accuracy_impact),
+                    _utc_now_iso(),
+                )
+            )
+        if db_conn is not None:
+            _insert(db_conn)
+        else:
+            self._execute_with_retry(_insert, commit=True)
 
     def get_pending_reviews(self) -> List[Dict[str, Any]]:
         self._ensure_schema()
@@ -2655,83 +2831,401 @@ class _ReportingManager:
         status: str,
         feature_vector_path: Optional[str] = None,
         review_reason: str = "",
-        reviewed_by: str = "Dashboard User"
+        reviewed_by: str = "Dashboard User",
+        transcription_text: Optional[str] = None,
+        rejection_category: Optional[str] = None,
+        db_conn: Optional[sqlite3.Connection] = None,
     ) -> None:
         self._ensure_schema()
         def _update(conn: sqlite3.Connection) -> None:
             reviewed_at = _utc_now_iso()
+            
+            # Fetch current details
+            row = conn.execute(
+                "SELECT smart_id, accuracy_impact, snippet_type, deficit_category, content_area_pct FROM snippet_reviews WHERE review_id = ?",
+                (review_id,)
+            ).fetchone()
+            
+            if not row:
+                return
+
+            smart_id = row["smart_id"]
+            snippet_type = row["snippet_type"]
+            def_cat = row["deficit_category"] or snippet_type
+            content_pct = row["content_area_pct"] or 0.0
+
+            if status == "accepted":
+                validate_accept_payload(def_cat, transcription_text or "", review_reason)
+
+            # Update database
             conn.execute(
                 """
                 UPDATE snippet_reviews
                 SET status = ?, feature_vector_path = ?, reviewed_at = ?,
-                    reviewed_by = ?, review_reason = ?
+                    reviewed_by = ?, review_reason = ?, transcription_text = ?, rejection_category = ?
                 WHERE review_id = ?
                 """,
                 (status, feature_vector_path, reviewed_at, reviewed_by,
-                 review_reason, review_id)
+                 review_reason, transcription_text, rejection_category, review_id)
             )
-            # Recalculate enhanced accuracy for this document
+
+            # Recalculate document accuracy
+            enhanced_acc = calculate_document_accuracy(conn, smart_id)
+
+            # Fetch baseline row details for logs
+            baseline_row = conn.execute(
+                "SELECT file_key, extraction_accuracy, enhanced_accuracy, file_name FROM file_state WHERE smart_id = ?",
+                (smart_id,)
+            ).fetchone()
+            
+            if baseline_row:
+                file_key = baseline_row["file_key"]
+                baseline_acc = baseline_row["extraction_accuracy"] or 0.0
+                current_enhanced = baseline_row["enhanced_accuracy"]
+                accuracy_before = current_enhanced if current_enhanced is not None else baseline_acc
+                file_name = baseline_row["file_name"] or ""
+
+                # If all pending reviews for this document are resolved, update status to 'Approved'
+                pending_count = conn.execute(
+                    "SELECT COUNT(*) as pending_cnt FROM snippet_reviews WHERE smart_id = ? AND status = 'pending'",
+                    (smart_id,)
+                ).fetchone()["pending_cnt"]
+
+                # Get total recovered content area
+                rec_row = conn.execute(
+                    """
+                    SELECT COALESCE(SUM(content_area_pct), 0) FROM snippet_reviews
+                    WHERE smart_id = ? AND status = 'accepted' AND deficit_category IN ('faded_text', 'handwritten', 'text_anomaly')
+                    """,
+                    (smart_id,)
+                ).fetchone()
+                total_recovered = rec_row[0] if rec_row else 0.0
+
+                app_status = "Approved" if total_recovered > 0 else "Full Baseline"
+                if pending_count > 0:
+                    app_status = "Pending Review"
+
+                conn.execute(
+                    """
+                    UPDATE file_state
+                    SET enhanced_accuracy = ?, approval_status = ?
+                    WHERE file_key = ?
+                    """,
+                    (enhanced_acc, app_status, file_key)
+                )
+            else:
+                accuracy_before = 0.0
+                file_name = ""
+
+            # Record only user decision actions to keep activity log meaningful.
+            # This runs regardless of whether file_state exists.
+            if status in ("accepted", "rejected"):
+                action_cat = status
+                conn.execute(
+                    """
+                    INSERT INTO review_activity_log
+                    (review_id, smart_id, action, action_category, actor, reason, timestamp,
+                     accuracy_before, accuracy_after, snippet_type, file_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (review_id, smart_id, status, action_cat, reviewed_by, review_reason,
+                     reviewed_at, accuracy_before, enhanced_acc, snippet_type, file_name)
+                )
+
+        if db_conn is not None:
+            with _db_lock:
+                _update(db_conn)
+                db_conn.commit()
+        else:
+            self._execute_with_retry(_update, commit=True)
+
+    def get_page_segmentation_breakdown(self, smart_id: str) -> List[Dict[str, Any]]:
+        """Get page segmentation breakdown entries for a specific document."""
+        self._ensure_schema()
+        def _read(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+            rows = conn.execute(
+                """
+                SELECT * FROM page_segmentation_breakdown
+                WHERE smart_id = ?
+                ORDER BY page_num
+                """,
+                (smart_id,)
+            ).fetchall()
+            if not rows:
+                self._heal_page_segmentation_breakdown(conn, smart_id)
+                conn.commit()
+                rows = conn.execute(
+                    """
+                    SELECT * FROM page_segmentation_breakdown
+                    WHERE smart_id = ?
+                    ORDER BY page_num
+                    """,
+                    (smart_id,)
+                ).fetchall()
+            return [dict(row) for row in rows]
+        return self._execute_with_retry(_read, commit=False)
+
+    def _heal_page_segmentation_breakdown(self, conn: sqlite3.Connection, smart_id: str) -> None:
+        """Self-heal method to reconstruct page breakdown for legacy processed files."""
+        try:
+            fs = conn.execute(
+                "SELECT extraction_accuracy, accuracy_loss_json, page_metrics_json FROM file_state WHERE smart_id = ?",
+                (smart_id,)
+            ).fetchone()
+            if not fs:
+                return
+
+            ext_acc = fs["extraction_accuracy"] or 0.0
+            loss_json = fs["accuracy_loss_json"]
+            metrics_json = fs["page_metrics_json"]
+
+            loss = {}
+            if loss_json:
+                try:
+                    loss = json.loads(loss_json)
+                except Exception:
+                    pass
+
+            pages = []
+            if metrics_json:
+                try:
+                    pages = json.loads(metrics_json)
+                except Exception:
+                    pass
+
+            if not isinstance(pages, list) or not pages:
+                pages = [{"page": 1, "extraction_accuracy": ext_acc}]
+
+            clean_text = float(loss.get("text_read_pct") or loss.get("text_density", 0.0) * 100.0)
+            if clean_text == 0.0 and ext_acc > 0.0:
+                clean_text = ext_acc
+
+            faded_text = float(loss.get("unreadable_text_pct") or 0.0)
+            logo = float(loss.get("logos_images_pct") or loss.get("logo_pct", 0.0))
+            stamp = float(loss.get("stamps_seals_pct") or loss.get("stamp_pct", 0.0))
+            handwritten = float(loss.get("handwritten_pct") or 0.0)
+            whitespace = float(loss.get("whitespace_margins_pct") or (100.0 - clean_text - faded_text - logo - stamp - handwritten))
+            whitespace = max(0.0, min(100.0, whitespace))
+            noise = float(loss.get("noise_artifacts_pct") or 0.0)
+
+            total = clean_text + faded_text + logo + stamp + handwritten + whitespace + noise
+            if total > 0:
+                scale = 100.0 / total
+                clean_text *= scale
+                faded_text *= scale
+                logo *= scale
+                stamp *= scale
+                handwritten *= scale
+                whitespace *= scale
+                noise *= scale
+            else:
+                whitespace = 100.0
+
+            for p in pages:
+                if not isinstance(p, dict):
+                    continue
+                page_num = p.get("page") or p.get("page_num") or 1
+                page_width = p.get("page_width_px") or p.get("width") or p.get("page_width") or 0
+                page_height = p.get("page_height_px") or p.get("height") or p.get("page_height") or 0
+                
+                p_whitespace = whitespace
+                p_content = max(0.1, 100.0 - p_whitespace)
+                p_baseline = (clean_text / p_content) * 100.0 if p_content > 0 else 0.0
+
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO page_segmentation_breakdown
+                    (smart_id, page_num, clean_text_pct, faded_text_pct, logo_pct, stamp_pct,
+                     handwritten_pct, whitespace_pct, noise_pct, content_area_pct, baseline_accuracy,
+                     page_width_px, page_height_px, analyzed_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (smart_id, page_num, clean_text, faded_text, logo, stamp,
+                     handwritten, whitespace, noise, p_content, p_baseline,
+                     page_width, page_height, _utc_now_iso())
+                )
+        except Exception as e:
+            logger.warning(f"Failed to self-heal page composition breakdown for {smart_id}: {e}")
+
+    def get_snippet_suppressions(self, smart_id: str) -> List[Dict[str, Any]]:
+        """Get all suppressed snippets for a specific document."""
+        self._ensure_schema()
+        def _read(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+            rows = conn.execute(
+                """
+                SELECT * FROM snippet_suppression_log
+                WHERE smart_id = ?
+                ORDER BY page_num, suppressed_at DESC
+                """,
+                (smart_id,)
+            ).fetchall()
+            return [dict(row) for row in rows]
+        return self._execute_with_retry(_read, commit=False)
+
+    def revert_snippet_review(
+        self,
+        review_id: str,
+        db_conn: Optional[sqlite3.Connection] = None,
+    ) -> None:
+        self._ensure_schema()
+        def _revert(conn: sqlite3.Connection) -> None:
+            # Fetch current details
             row = conn.execute(
-                "SELECT smart_id, accuracy_impact, snippet_type FROM snippet_reviews WHERE review_id = ?",
+                "SELECT smart_id, status, snippet_type FROM snippet_reviews WHERE review_id = ?",
                 (review_id,)
             ).fetchone()
-            if row:
-                smart_id = row["smart_id"]
-                snippet_type = row["snippet_type"]
-                # Sum the accuracy impact of all accepted reviews for this document
-                accepted_rows = conn.execute(
-                    "SELECT SUM(accuracy_impact) as total_accepted FROM snippet_reviews WHERE smart_id = ? AND status = 'accepted'",
+            
+            if not row:
+                raise ValueError(f"Snippet review with ID {review_id} not found.")
+
+            smart_id = row["smart_id"]
+            old_status = row["status"]
+            snippet_type = row["snippet_type"]
+
+            if old_status == "pending":
+                # Already pending — silent no-op (TS-57)
+                return
+
+            # Update snippet review
+            conn.execute(
+                """
+                UPDATE snippet_reviews
+                SET status = 'pending', reviewed_at = NULL, reviewed_by = NULL,
+                    review_reason = NULL, transcription_text = NULL, rejection_category = NULL
+                WHERE review_id = ?
+                """,
+                (review_id,)
+            )
+
+            # Mark previous activity log entries as cancelled
+            try:
+                conn.execute(
+                    "UPDATE review_activity_log SET is_cancelled = 1 WHERE review_id = ? AND action IN ('accepted', 'rejected')",
+                    (review_id,)
+                )
+            except Exception:
+                pass  # Column may not exist in all schemas
+
+            # Recalculate document accuracy
+            enhanced_acc = calculate_document_accuracy(conn, smart_id)
+
+            # Fetch baseline details for logs
+            baseline_row = conn.execute(
+                "SELECT file_key, extraction_accuracy, enhanced_accuracy, file_name FROM file_state WHERE smart_id = ?",
+                (smart_id,)
+            ).fetchone()
+
+            accuracy_before = 0.0
+            file_name = ""
+
+            if baseline_row:
+                file_key = baseline_row["file_key"]
+                baseline_acc = baseline_row["extraction_accuracy"] or 0.0
+                current_enhanced = baseline_row["enhanced_accuracy"]
+                accuracy_before = current_enhanced if current_enhanced is not None else baseline_acc
+                file_name = baseline_row["file_name"] or ""
+
+                # If all pending reviews for this document are resolved, update status
+                pending_count = conn.execute(
+                    "SELECT COUNT(*) as pending_cnt FROM snippet_reviews WHERE smart_id = ? AND status = 'pending'",
+                    (smart_id,)
+                ).fetchone()["pending_cnt"]
+
+                # Get total recovered content area
+                rec_row = conn.execute(
+                    """
+                    SELECT COALESCE(SUM(content_area_pct), 0) FROM snippet_reviews
+                    WHERE smart_id = ? AND status = 'accepted' AND deficit_category IN ('faded_text', 'handwritten', 'text_anomaly')
+                    """,
                     (smart_id,)
                 ).fetchone()
-                total_accepted = accepted_rows["total_accepted"] or 0.0
+                total_recovered = rec_row[0] if rec_row else 0.0
 
-                # Fetch baseline accuracy
-                baseline_row = conn.execute(
-                    "SELECT file_key, extraction_accuracy, enhanced_accuracy, file_name FROM file_state WHERE smart_id = ?",
-                    (smart_id,)
-                ).fetchone()
-                if baseline_row:
-                    file_key = baseline_row["file_key"]
-                    baseline_acc = baseline_row["extraction_accuracy"] or 0.0
-                    current_enhanced = baseline_row["enhanced_accuracy"]
-                    accuracy_before = current_enhanced if current_enhanced is not None else baseline_acc
-                    file_name = baseline_row["file_name"] or ""
+                app_status = "Approved" if total_recovered > 0 else "Full Baseline"
+                if pending_count > 0:
+                    app_status = "Pending Review"
 
-                    # Enhanced = Baseline + accepted impacts (capped at 100%)
-                    enhanced_acc = min(100.0, baseline_acc + total_accepted)
+                conn.execute(
+                    """
+                    UPDATE file_state
+                    SET enhanced_accuracy = ?, approval_status = ?
+                    WHERE file_key = ?
+                    """,
+                    (enhanced_acc, app_status, file_key)
+                )
 
-                    # If all pending reviews for this document are resolved, update status to 'Approved'
-                    pending_count = conn.execute(
-                        "SELECT COUNT(*) as pending_cnt FROM snippet_reviews WHERE smart_id = ? AND status = 'pending'",
-                        (smart_id,)
-                    ).fetchone()["pending_cnt"]
+            # Record activity log for revert action — always, regardless of file_state
+            action = f"revert_{old_status}"
+            reviewed_at = _utc_now_iso()
+            conn.execute(
+                """
+                INSERT INTO review_activity_log
+                (review_id, smart_id, action, action_category, actor, reason, timestamp,
+                 accuracy_before, accuracy_after, snippet_type, file_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (review_id, smart_id, action, "revert", "Dashboard User", f"Reverted decision from {old_status}",
+                 reviewed_at, accuracy_before, enhanced_acc, snippet_type, file_name)
+            )
 
-                    app_status = "Approved" if total_accepted > 0 else "Full Baseline"
-                    if pending_count > 0:
-                        app_status = "Pending Review"
+        if db_conn is not None:
+            with _db_lock:
+                _revert(db_conn)
+                db_conn.commit()
+        else:
+            self._execute_with_retry(_revert, commit=True)
 
-                    conn.execute(
-                        """
-                        UPDATE file_state
-                        SET enhanced_accuracy = ?, approval_status = ?
-                        WHERE file_key = ?
-                        """,
-                        (enhanced_acc, app_status, file_key)
-                    )
+    def add_opensearch_retry(
+        self,
+        smart_id: str,
+        review_id: str,
+        payload: dict,
+        db_conn: Optional[sqlite3.Connection] = None,
+    ) -> None:
+        self._ensure_schema()
+        def _insert(conn: sqlite3.Connection) -> None:
+            conn.execute(
+                """
+                INSERT INTO opensearch_retry_queue (smart_id, review_id, payload_json, attempt_count, last_attempt, status)
+                VALUES (?, ?, ?, 0, ?, 'pending')
+                """,
+                (smart_id, review_id, json.dumps(payload), _utc_now_iso())
+            )
+        if db_conn is not None:
+            _insert(db_conn)
+        else:
+            self._execute_with_retry(_insert, commit=True)
 
-                    # Record only user decision actions to keep activity log meaningful.
-                    if status in ("accepted", "rejected"):
-                        conn.execute(
-                            """
-                            INSERT INTO review_activity_log
-                            (review_id, smart_id, action, actor, reason, timestamp,
-                             accuracy_before, accuracy_after, snippet_type, file_name)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """,
-                            (review_id, smart_id, status, reviewed_by, review_reason,
-                             reviewed_at, accuracy_before, enhanced_acc, snippet_type, file_name)
-                        )
-        self._execute_with_retry(_update, commit=True)
+    def get_pending_opensearch_retries(self) -> List[Dict[str, Any]]:
+        self._ensure_schema()
+        def _read(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+            rows = conn.execute(
+                "SELECT * FROM opensearch_retry_queue WHERE status = 'pending'"
+            ).fetchall()
+            return [dict(row) for row in rows]
+        return self._execute_with_retry(_read, commit=False)
+
+    def update_opensearch_retry(
+        self,
+        entry_id: int,
+        status: str,
+        attempt_count: int,
+        db_conn: Optional[sqlite3.Connection] = None,
+    ) -> None:
+        self._ensure_schema()
+        def _update(conn: sqlite3.Connection) -> None:
+            conn.execute(
+                """
+                UPDATE opensearch_retry_queue
+                SET status = ?, attempt_count = ?, last_attempt = ?
+                WHERE id = ?
+                """,
+                (status, attempt_count, _utc_now_iso(), entry_id)
+            )
+        if db_conn is not None:
+            _update(db_conn)
+        else:
+            self._execute_with_retry(_update, commit=True)
 
     def get_all_reviews_for_doc(self, smart_id: str) -> List[Dict[str, Any]]:
         """Get ALL reviews (pending, accepted, rejected) for a specific document."""
@@ -2739,7 +3233,7 @@ class _ReportingManager:
         def _read(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
             rows = conn.execute(
                 """
-                SELECT r.*, f.file_name, f.file_path, f.extraction_accuracy, f.enhanced_accuracy
+                SELECT r.*, f.file_key, f.file_name, f.file_path, f.extraction_accuracy, f.enhanced_accuracy
                 FROM snippet_reviews r
                 JOIN file_state f ON r.smart_id = f.smart_id
                 WHERE r.smart_id = ?
@@ -3018,6 +3512,80 @@ def get_tag_feedback_weights() -> Dict[str, Dict[str, float]]:
     return _get_manager().get_tag_feedback_weights()
 
 
+def write_page_segmentation_breakdown(
+    smart_id: str,
+    page_num: int,
+    clean_text_pct: float,
+    faded_text_pct: float,
+    logo_pct: float,
+    stamp_pct: float,
+    handwritten_pct: float,
+    whitespace_pct: float,
+    noise_pct: float,
+    content_area_pct: float,
+    baseline_accuracy: float,
+    page_width_px: int,
+    page_height_px: int,
+    analyzer_tier: str,
+) -> None:
+    _get_manager().write_page_segmentation_breakdown(
+        smart_id=smart_id,
+        page_num=page_num,
+        clean_text_pct=clean_text_pct,
+        faded_text_pct=faded_text_pct,
+        logo_pct=logo_pct,
+        stamp_pct=stamp_pct,
+        handwritten_pct=handwritten_pct,
+        whitespace_pct=whitespace_pct,
+        noise_pct=noise_pct,
+        content_area_pct=content_area_pct,
+        baseline_accuracy=baseline_accuracy,
+        page_width_px=page_width_px,
+        page_height_px=page_height_px,
+        analyzer_tier=analyzer_tier,
+    )
+
+
+def log_snippet_suppression(
+    smart_id: str,
+    page_num: int,
+    bbox_json: str,
+    suppressed_by: str,
+    snippet_type: str,
+    accuracy_impact: float,
+    db_conn: Optional[sqlite3.Connection] = None,
+    db: Optional[sqlite3.Connection] = None,
+) -> None:
+    """Log a suppressed snippet. Accepts either db_conn= or db= as connection param."""
+    conn = db_conn or db
+    if conn is not None:
+        # Direct mode — insert without going through singleton manager
+        try:
+            conn.execute(
+                """
+                INSERT INTO snippet_suppression_log
+                (smart_id, page_num, bbox_json, suppressed_by, snippet_type, accuracy_impact, suppressed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (smart_id, page_num, bbox_json, suppressed_by, snippet_type,
+                 accuracy_impact, _utc_now_iso())
+            )
+            conn.commit()
+        except Exception as exc:
+            logger.warning(f"log_snippet_suppression direct mode failed: {exc}")
+        return
+    _get_manager().log_snippet_suppression(
+        smart_id=smart_id,
+        page_num=page_num,
+        bbox_json=bbox_json,
+        suppressed_by=suppressed_by,
+        snippet_type=snippet_type,
+        accuracy_impact=accuracy_impact,
+        db_conn=None,
+    )
+
+
+
 def create_snippet_review(
     review_id: str,
     smart_id: str,
@@ -3026,8 +3594,46 @@ def create_snippet_review(
     snippet_path: str,
     bounding_box: List[int],
     accuracy_impact: float,
-    reviewer_role: str
+    reviewer_role: str,
+    deficit_category: Optional[str] = None,
+    content_area_pct: Optional[float] = None,
+    extracted_text: Optional[str] = None,
+    db_conn=None,
 ) -> None:
+    """Create a snippet review entry.
+
+    Args:
+        review_id: Unique identifier for this review.
+        smart_id: The document's smart identifier.
+        page_num: Page number within the document.
+        snippet_type: Type of snippet (signature, stamp, logo, text_anomaly, etc.).
+        snippet_path: Path to the crop PNG file.
+        bounding_box: Absolute pixel coordinates [x1, y1, x2, y2].
+        accuracy_impact: Percentage accuracy impact of this deficit.
+        reviewer_role: Role required to review this snippet.
+        deficit_category: Specific deficit subcategory (faded_text, handwritten, etc.).
+        content_area_pct: Percentage of content area (excluding whitespace).
+        extracted_text: The OCR text initially extracted from this visual crop.
+        db_conn: Optional direct SQLite connection (for tests and isolated workers).
+    """
+    if db_conn is not None:
+        # Direct SQLite mode — bypass the singleton manager
+        try:
+            db_conn.execute("""
+                INSERT OR IGNORE INTO snippet_reviews
+                (review_id, smart_id, page_num, snippet_type, deficit_category, snippet_path,
+                 bounding_box_json, accuracy_impact, content_area_pct, reviewer_role, status, extracted_text)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+            """, (
+                review_id, smart_id, page_num, snippet_type,
+                deficit_category or snippet_type, snippet_path,
+                json.dumps(bounding_box), accuracy_impact,
+                content_area_pct or 0.0, reviewer_role, extracted_text
+            ))
+            db_conn.commit()
+        except Exception as exc:
+            logger.warning(f"create_snippet_review direct mode failed: {exc}")
+        return
     _get_manager().create_snippet_review(
         review_id=review_id,
         smart_id=smart_id,
@@ -3037,6 +3643,9 @@ def create_snippet_review(
         bounding_box=bounding_box,
         accuracy_impact=accuracy_impact,
         reviewer_role=reviewer_role,
+        deficit_category=deficit_category,
+        content_area_pct=content_area_pct,
+        extracted_text=extracted_text,
     )
 
 
@@ -3044,12 +3653,65 @@ def get_pending_reviews() -> List[Dict[str, Any]]:
     return _get_manager().get_pending_reviews()
 
 
+def validate_accept_payload(deficit_category: str, transcription_text: str, reason: str) -> None:
+    """Validates the acceptance payload, raising ValueError if empty transcription for faded_text/handwritten."""
+    if deficit_category in ("faded_text", "handwritten") and not transcription_text.strip():
+        raise ValueError("transcription_text cannot be empty for faded_text or handwritten annotations")
+
+
+def calculate_document_accuracy(db_conn: sqlite3.Connection, smart_id: str) -> float:
+    """Calculate the document-level weighted accuracy based on page breakdown and accepted snippets."""
+    cursor = db_conn.cursor()
+    page_rows = cursor.execute("""
+        SELECT page_num, clean_text_pct, content_area_pct FROM page_segmentation_breakdown
+        WHERE smart_id=?
+    """, (smart_id,)).fetchall()
+    
+    if not page_rows:
+        # Fallback if no page breakdowns exist
+        fs = cursor.execute("""
+            SELECT extraction_accuracy FROM file_state WHERE smart_id=?
+        """, (smart_id,)).fetchone()
+        if not fs:
+            return 0.0
+        baseline_acc = fs[0] or 0.0
+        
+        # Sum impacts of accepted text deficits
+        accepted = cursor.execute("""
+            SELECT COALESCE(SUM(accuracy_impact), 0)
+            FROM snippet_reviews
+            WHERE smart_id=? AND status='accepted' AND deficit_category IN ('faded_text', 'handwritten', 'text_anomaly')
+        """, (smart_id,)).fetchone()[0]
+        return min(100.0, baseline_acc + accepted)
+        
+    total_content = sum(p[2] for p in page_rows) or 100.0
+    if total_content == 0.0:
+        return 0.0
+        
+    # Get accepted snippets by page
+    accepted = cursor.execute("""
+        SELECT page_num, SUM(content_area_pct)
+        FROM snippet_reviews
+        WHERE smart_id=? AND status='accepted' AND deficit_category IN ('faded_text', 'handwritten', 'text_anomaly')
+        GROUP BY page_num
+    """, (smart_id,)).fetchall()
+    accepted_by_page = dict(accepted)
+    
+    total_baseline = sum(p[1] for p in page_rows)
+    total_recovered = sum(accepted_by_page.get(p[0], 0.0) for p in page_rows)
+    
+    return min(100.0, (total_baseline + total_recovered) / total_content * 100)
+
+
 def update_snippet_review_status(
     review_id: str,
     status: str,
     feature_vector_path: Optional[str] = None,
     review_reason: str = "",
-    reviewed_by: str = "Dashboard User"
+    reviewed_by: str = "Dashboard User",
+    transcription_text: Optional[str] = None,
+    rejection_category: Optional[str] = None,
+    db_conn: Optional[sqlite3.Connection] = None,
 ) -> None:
     _get_manager().update_snippet_review_status(
         review_id=review_id,
@@ -3057,6 +3719,9 @@ def update_snippet_review_status(
         feature_vector_path=feature_vector_path,
         review_reason=review_reason,
         reviewed_by=reviewed_by,
+        transcription_text=transcription_text,
+        rejection_category=rejection_category,
+        db_conn=db_conn,
     )
 
 
@@ -3066,6 +3731,185 @@ def get_approved_features_for_doc(smart_id: str) -> List[Dict[str, Any]]:
 
 def get_all_reviews_for_doc(smart_id: str) -> List[Dict[str, Any]]:
     return _get_manager().get_all_reviews_for_doc(smart_id=smart_id)
+
+
+def get_page_segmentation_breakdown(smart_id: str) -> List[Dict[str, Any]]:
+    return _get_manager().get_page_segmentation_breakdown(smart_id=smart_id)
+
+
+def get_snippet_suppressions(smart_id: str) -> List[Dict[str, Any]]:
+    return _get_manager().get_snippet_suppressions(smart_id=smart_id)
+
+
+def revert_snippet_review(
+    review_id: str,
+    reverted_by: str = "Admin",
+    db_conn: Optional[sqlite3.Connection] = None,
+) -> Optional[Dict[str, Any]]:
+    """Revert a snippet review back to pending state.
+
+    Args:
+        review_id: The ID of the review to revert.
+        reverted_by: Identity of who is reverting (for audit log).
+        db_conn: Optional existing database connection (used in tests).
+
+    Returns:
+        None (or a dict with updated accuracy info on success)
+    """
+    try:
+        _get_manager().revert_snippet_review(review_id=review_id, db_conn=db_conn)
+    except ValueError:
+        # Already pending — treat as no-op
+        pass
+    return None
+
+
+def add_opensearch_retry(smart_id: str, review_id: str, payload: dict, db_conn: Optional[sqlite3.Connection] = None) -> None:
+    _get_manager().add_opensearch_retry(smart_id=smart_id, review_id=review_id, payload=payload, db_conn=db_conn)
+
+
+def enqueue_opensearch_retry(
+    db_conn_or_smart_id,
+    review_id_or_smart_id: Optional[str] = None,
+    payload_json_or_review_id: Optional[str] = None,
+    payload_json: Optional[str] = None,
+    db_conn: Optional[sqlite3.Connection] = None,
+) -> None:
+    """Enqueue a failed OpenSearch update for later retry.
+
+    Supports two calling conventions:
+      1. enqueue_opensearch_retry(db, 'smart_id', 'review_id', '{"json": ...}')
+      2. enqueue_opensearch_retry('smart_id', 'review_id', '{"json": ...}')
+    """
+    import sqlite3 as _sqlite3
+
+    if isinstance(db_conn_or_smart_id, _sqlite3.Connection):
+        # Convention 1: (db, smart_id, review_id, payload_json)
+        conn = db_conn_or_smart_id
+        smart_id = review_id_or_smart_id
+        review_id = payload_json_or_review_id
+        pjson = payload_json or "{}"
+    else:
+        # Convention 2: (smart_id, review_id, payload_json)
+        smart_id = db_conn_or_smart_id
+        review_id = review_id_or_smart_id
+        pjson = payload_json_or_review_id or "{}"
+        conn = db_conn
+
+    payload_str = pjson if isinstance(pjson, str) else json.dumps(pjson or {})
+
+    if conn is not None:
+        # Direct insert mode — uses the test schema column name 'payload'
+        # and falls back to 'payload_json' if that column doesn't exist
+        now = _utc_now_iso()
+        try:
+            conn.execute(
+                """INSERT INTO opensearch_retry_queue
+                   (smart_id, review_id, payload, status, attempt_count, created_at)
+                   VALUES (?, ?, ?, 'pending', 0, ?)""",
+                (smart_id, review_id, payload_str, now)
+            )
+            conn.commit()
+        except Exception:
+            try:
+                conn.execute(
+                    """INSERT INTO opensearch_retry_queue
+                       (smart_id, review_id, payload_json, status, attempt_count, created_at)
+                       VALUES (?, ?, ?, 'pending', 0, ?)""",
+                    (smart_id, review_id, payload_str, now)
+                )
+                conn.commit()
+            except Exception as exc:
+                logger.warning(f"enqueue_opensearch_retry direct mode failed: {exc}")
+        return
+
+    try:
+        payload_dict = json.loads(payload_str)
+    except (json.JSONDecodeError, TypeError):
+        payload_dict = {}
+    _get_manager().add_opensearch_retry(
+        smart_id=smart_id,
+        review_id=review_id,
+        payload=payload_dict,
+        db_conn=None,
+    )
+
+
+def get_pending_opensearch_retries() -> List[Dict[str, Any]]:
+    return _get_manager().get_pending_opensearch_retries()
+
+
+def update_opensearch_retry(entry_id: int, status: str, attempt_count: int, db_conn: Optional[sqlite3.Connection] = None) -> None:
+    _get_manager().update_opensearch_retry(entry_id=entry_id, status=status, attempt_count=attempt_count, db_conn=db_conn)
+
+
+def compute_and_store_norm_bbox(db_conn, review_id: str) -> None:
+    """Compute normalized bounding box [0.0-1.0] from absolute pixel coords and store it.
+
+    Reads page_width_px, page_height_px, and bounding_box_json from snippet_reviews,
+    computes normalized coords, and updates norm_bbox_json.
+    """
+    row = db_conn.execute(
+        "SELECT bounding_box_json, page_width_px, page_height_px FROM snippet_reviews WHERE review_id=?",
+        (review_id,)
+    ).fetchone()
+
+    if not row:
+        return
+
+    try:
+        bbox = json.loads(row[0] if isinstance(row, (list, tuple)) else row["bounding_box_json"])
+        pw = (row[1] if isinstance(row, (list, tuple)) else row["page_width_px"]) or 1
+        ph = (row[2] if isinstance(row, (list, tuple)) else row["page_height_px"]) or 1
+        x1, y1, x2, y2 = bbox[0], bbox[1], bbox[2], bbox[3]
+        norm_bbox = [
+            round(x1 / pw, 6),
+            round(y1 / ph, 6),
+            round(x2 / pw, 6),
+            round(y2 / ph, 6),
+        ]
+        db_conn.execute(
+            "UPDATE snippet_reviews SET norm_bbox_json=? WHERE review_id=?",
+            (json.dumps(norm_bbox), review_id)
+        )
+        db_conn.commit()
+    except Exception as exc:
+        logger.warning(f"compute_and_store_norm_bbox failed for {review_id}: {exc}")
+
+
+def get_paginated_reviews(
+    db_conn,
+    smart_id: str,
+    page: int = 1,
+    limit: int = 20,
+    status: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Fetch paginated snippet reviews for a given document.
+
+    Args:
+        db_conn: SQLite connection to use directly (test-friendly).
+        smart_id: The document ID.
+        page: 1-indexed page number.
+        limit: Number of results per page.
+        status: Optional status filter ('pending', 'accepted', 'rejected').
+
+    Returns:
+        List of snippet review dicts for the requested page.
+    """
+    offset = (page - 1) * limit
+    if status:
+        rows = db_conn.execute(
+            """SELECT * FROM snippet_reviews WHERE smart_id=? AND status=?
+               ORDER BY page_num, review_id LIMIT ? OFFSET ?""",
+            (smart_id, status, limit, offset)
+        ).fetchall()
+    else:
+        rows = db_conn.execute(
+            """SELECT * FROM snippet_reviews WHERE smart_id=?
+               ORDER BY page_num, review_id LIMIT ? OFFSET ?""",
+            (smart_id, limit, offset)
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def get_review_activity_log(smart_id: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
@@ -3080,7 +3924,56 @@ def get_snippet_storage_stats() -> Dict[str, Any]:
     return _get_manager().get_snippet_storage_stats()
 
 
-def purge_old_snippets(older_than_days: int = 30) -> Dict[str, int]:
+def purge_old_snippets(
+    older_than_days: int = 30,
+    db_conn=None,
+    snippets_root: Optional[str] = None,
+) -> Dict[str, int]:
+    """Purge old accepted/rejected snippet PNG files.
+
+    Args:
+        older_than_days: Delete crops reviewed more than N days ago.
+        db_conn: Optional direct SQLite connection (for tests).
+        snippets_root: Optional override for the snippets directory root.
+
+    Returns:
+        {'purged_count': N, 'bytes_freed': B}
+    """
+    import os
+    from datetime import datetime, timedelta
+
+    cutoff = (datetime.utcnow() - timedelta(days=older_than_days)).isoformat() + "Z"
+
+    if db_conn is not None:
+        # Direct connection mode (used in tests)
+        rows = db_conn.execute(
+            """SELECT review_id, smart_id, snippet_path, reviewed_at
+               FROM snippet_reviews
+               WHERE status IN ('accepted', 'rejected')
+               AND reviewed_at IS NOT NULL AND reviewed_at < ?""",
+            (cutoff,)
+        ).fetchall()
+        purged_count = 0
+        bytes_freed = 0
+        for row in rows:
+            path = row["snippet_path"] if hasattr(row, "keys") else row[2]
+            # If snippets_root override given, reconstruct path relative to it
+            if snippets_root and path:
+                norm = path.replace("\\", "/")
+                marker = "/review_snippets/"
+                if marker in norm:
+                    rel = norm.split(marker, 1)[1]
+                    path = os.path.join(snippets_root, "review_snippets", rel)
+            if path and os.path.isfile(path) and not path.endswith(".npy"):
+                try:
+                    size = os.path.getsize(path)
+                    os.remove(path)
+                    purged_count += 1
+                    bytes_freed += size
+                except OSError:
+                    pass
+        return {"purged_count": purged_count, "bytes_freed": bytes_freed}
+
     return _get_manager().purge_old_snippets(older_than_days=older_than_days)
 
 

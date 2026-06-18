@@ -33,6 +33,12 @@ from core.reporting_manager import (
     get_snippet_storage_stats,
     purge_old_snippets,
     update_snippet_review_status,
+    get_page_segmentation_breakdown,
+    get_snippet_suppressions,
+    revert_snippet_review,
+    add_opensearch_retry,
+    get_pending_opensearch_retries,
+    update_opensearch_retry,
 )
 from indexing.opensearch_client import OpenSearchClient
 from ocr.visual_memory import VisualMemoryEngine
@@ -67,6 +73,20 @@ ACCEPTANCE_REASONS = {
         "Reference number/identifier — expected text token",
         "Printed text artifact — not a signature",
         "No manual visual validation needed",
+    ],
+    "handwritten": [
+        "Legible handwritten annotation — verified content",
+        "Handwritten numbers/date — standard document field",
+        "Margin notes/comments — administrative record",
+        "Form fill-in — manual entry verified",
+        "Correction/amendment — approved handwriting",
+    ],
+    "faded_text": [
+        "Faded printed text recovered — verified transcription",
+        "Faint watermark/background text — readable content",
+        "Carbon copy text restored — administrative record",
+        "Low contrast text region — manually corrected",
+        "Partially legible text segment — transcription verified",
     ],
 }
 GENERIC_REASONS = [
@@ -105,12 +125,26 @@ SNIPPET_TYPE_CONFIG = {
         "bg": "#ECFEFF",
         "border": "#67E8F9",
     },
+    "handwritten": {
+        "icon": "✍️",
+        "label": "Handwritten",
+        "color": "#DB2777",
+        "bg": "#FDF2F8",
+        "border": "#FBCFE8",
+    },
+    "faded_text": {
+        "icon": "░",
+        "label": "Faded Text",
+        "color": "#1D4ED8",
+        "bg": "#EFF6FF",
+        "border": "#BFDBFE",
+    },
 }
 
 STATUS_BADGES = {
-    "pending": {"color": "#F59E0B", "bg": "#FFFBEB", "label": "⏳ Pending Review"},
-    "accepted": {"color": "#059669", "bg": "#ECFDF5", "label": "✅ Accepted"},
-    "rejected": {"color": "#DC2626", "bg": "#FEF2F2", "label": "❌ Rejected"},
+    "pending": {"color": "#D97706", "bg": "#FFF6E5", "label": "Pending Review"},
+    "accepted": {"color": "#047857", "bg": "#ECFDF5", "label": "Accepted"},
+    "rejected": {"color": "#B91C1C", "bg": "#FEF2F2", "label": "Rejected"},
 }
 
 
@@ -161,23 +195,39 @@ def _render_metric_card(
     )
 
 
-def _resolve_snippet_path(snippet_path: Path, working_root: Path) -> Path:
-    """Resolve legacy snippet paths into current workspace data path."""
-    if snippet_path.exists():
-        return snippet_path
+def _resolve_snippet_path(snippet_path, working_root) -> Optional[str]:
+    """Resolve legacy snippet paths into current workspace data path.
 
-    normalized = str(snippet_path).replace("\\", "/")
+    Args:
+        snippet_path: Path to the snippet file (str or Path).
+        working_root: Root directory of the working space (str or Path).
+
+    Returns:
+        Resolved path string if the file exists, or None if not found.
+    """
+    if snippet_path is None:
+        return None
+
+    path = Path(str(snippet_path))
+    working = Path(str(working_root))
+
+    if path.exists():
+        return str(path)
+
+    # Try normalized path remapping for legacy paths
+    normalized = str(path).replace("\\", "/")
     marker = "/data/review_snippets/"
     if marker in normalized:
         relative_part = normalized.split(marker, 1)[1]
-        mapped = working_root.parent / "data" / "review_snippets" / Path(relative_part)
+        mapped = working.parent / "data" / "review_snippets" / Path(relative_part)
         if mapped.exists():
-            return mapped
+            return str(mapped)
 
-    return snippet_path
+    # File not found
+    return None
 
 
-def _build_uniform_thumbnail(img: Image.Image, width: int = 520, height: int = 280) -> Image.Image:
+def _build_uniform_thumbnail(img: Image.Image, width: int = 480, height: int = 160) -> Image.Image:
     """Build a fixed-size thumbnail canvas for consistent tile height."""
     if img.mode != "RGB":
         img = img.convert("RGB")
@@ -192,20 +242,87 @@ def _build_uniform_thumbnail(img: Image.Image, width: int = 520, height: int = 2
     return canvas
 
 
+def _resolve_document_path(file_path: Any) -> Optional[str]:
+    """Resolve legacy document file paths using current environment settings."""
+    if not file_path:
+        return None
+    p = Path(file_path)
+    if p.exists():
+        return str(p)
+    
+    try:
+        config = get_config()
+        # config is a dataclass — access via attribute, not .get()
+        source_drive = getattr(getattr(config, "paths", None), "source_drive", None)
+        if source_drive:
+            mapped = Path(source_drive) / p.name
+            if mapped.exists():
+                return str(mapped)
+    except Exception:
+        pass
+        
+    # Try relative data directory
+    try:
+        mapped = Path("data") / p.name
+        if mapped.exists():
+            return str(mapped)
+    except Exception:
+        pass
+        
+    return None
+
+
+
 def _build_document_page_link(file_path: str, page_num: int) -> Optional[str]:
     """Build file:// URL with page hint for local PDF files."""
     if not file_path:
         return None
     try:
-        p = Path(file_path)
-        if not p.exists():
+        resolved = _resolve_document_path(file_path)
+        if not resolved:
             return None
+        p = Path(resolved)
         uri = p.resolve().as_uri()
         if p.suffix.lower() == ".pdf":
             return f"{uri}#page={max(1, int(page_num or 1))}"
         return uri
     except Exception:
         return None
+
+
+def _open_source_document(file_path: Any, page_num: Any) -> None:
+    """Open file with system default application to specific page."""
+    try:
+        import webbrowser
+        page_num_int = int(page_num or 1)
+        file_path_str = str(file_path)
+        
+        # Build file URL using the existing helper which correctly adds the page anchor
+        uri = _build_document_page_link(file_path_str, page_num_int)
+        if uri:
+            try:
+                if webbrowser.open(uri):
+                    return
+            except Exception:
+                pass
+        
+        if os.name == 'nt':  # Windows
+            # Final fallback: Use default app (won't open to page, but will work)
+            os.startfile(file_path_str)
+        elif os.uname().sysname == 'Darwin':  # macOS
+            # macOS: use open with -a for app and page parameter via URL scheme
+            file_uri = Path(file_path_str).resolve().as_uri()
+            if page_num_int > 1:
+                file_uri += f'#page={page_num_int}'
+            subprocess.run(['open', file_uri], check=True)
+        else:  # Linux
+            # Linux: xdg-open respects file:// URLs with #page anchor
+            file_uri = Path(file_path_str).resolve().as_uri()
+            if page_num_int > 1:
+                file_uri += f'#page={page_num_int}'
+            subprocess.run(['xdg-open', file_uri], check=True)
+    except Exception as e:
+        st.error(f"Failed to open file: {e}")
 
 
 def _render_accuracy_waterfall_chart(snippets: List[Dict[str, Any]], selected_doc: Dict[str, Any]) -> None:
@@ -217,14 +334,16 @@ def _render_accuracy_waterfall_chart(snippets: List[Dict[str, Any]], selected_do
          current accuracy upward toward 100%
       3. Total Accuracy (blue, dotted outline, light fill) — last bar
     """
-    pending = [s for s in snippets if s.get("status") == "pending"]
     category_meta = {
         "stamp": ("Stamp", "#F59E0B"),
         "signature": ("Signature", "#EF4444"),
         "logo": ("Logo/Image", "#8B5CF6"),
         "text_anomaly": ("Text", "#14B8A6"),
+        "handwritten": ("Handwritten", "#EC4899"),
+        "faded_text": ("Faded Text", "#3B82F6"),
     }
 
+    pending = [s for s in snippets if s.get("status") == "pending"]
     by_type: Dict[str, Dict[str, float]] = {}
     for s in pending:
         t = str(s.get("snippet_type") or "other")
@@ -340,6 +459,219 @@ def _render_accuracy_waterfall_chart(snippets: List[Dict[str, Any]], selected_do
     components.html(svg, height=chart_h + 70, width=chart_width, scrolling=False)
 
 
+def _render_page_composition_bar(selected_doc: Dict[str, Any]) -> None:
+    smart_id = selected_doc.get("smart_id")
+    if not smart_id:
+        st.warning("No document selected.")
+        return
+
+    breakdown = get_page_segmentation_breakdown(smart_id)
+    if not breakdown:
+        st.info("No page segmentation breakdown available for this document.")
+        return
+
+    st.markdown("""<div style="border: 1px solid #E5E7EB; border-radius: 10px; padding: 16px; background: #FFFFFF; font-family: sans-serif; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 15px;">
+  <div style="font-weight: 700; color: #1E293B; margin-bottom: 12px; font-size: 15px;">Page-by-Page Composition Breakdown</div>
+  <!-- Legend -->
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #475569;">
+    <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; background: #10B981; border-radius: 3px;"></span>Clean Text</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; background: #3B82F6; border-radius: 3px;"></span>Faded Text</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; background: #8B5CF6; border-radius: 3px;"></span>Logo/Image</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; background: #F59E0B; border-radius: 3px;"></span>Stamp</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; background: #EC4899; border-radius: 3px;"></span>Handwritten</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 3px;"></span>Whitespace</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; background: #6B7280; border-radius: 3px;"></span>Noise</span>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+    file_path = _resolve_document_path(selected_doc.get("file_path"))
+
+    for row in breakdown:
+        page_num = row.get("page_num", 1)
+        clean = float(row.get("clean_text_pct") or 0.0)
+        faded = float(row.get("faded_text_pct") or 0.0)
+        logo = float(row.get("logo_pct") or 0.0)
+        stamp = float(row.get("stamp_pct") or 0.0)
+        handwritten = float(row.get("handwritten_pct") or 0.0)
+        whitespace = float(row.get("whitespace_pct") or 0.0)
+        noise = float(row.get("noise_pct") or 0.0)
+
+        # Normalize to 100%
+        total = clean + faded + logo + stamp + handwritten + whitespace + noise
+        if total > 0:
+            scale = 100.0 / total
+            clean *= scale
+            faded *= scale
+            logo *= scale
+            stamp *= scale
+            handwritten *= scale
+            whitespace *= scale
+            noise *= scale
+        else:
+            whitespace = 100.0
+
+        col_btn, col_bar = st.columns([1.5, 8.5])
+        with col_btn:
+            if file_path:
+                st.button(
+                    f"🔗 P. {page_num}",
+                    key=f"open_comp_page_{smart_id}_{page_num}",
+                    on_click=_open_source_document,
+                    args=(file_path, page_num),
+                    help=f"Open document to page {page_num}"
+                )
+            else:
+                st.markdown(f"**Page {page_num}**")
+
+        with col_bar:
+            page_html_parts = []
+            page_html_parts.append(f"""<div style="font-family: sans-serif; margin-bottom: 14px; padding: 8px; border: 1px solid #E2E8F0; border-radius: 8px; background: #F8FAFC;">
+  <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #64748B; margin-bottom: 4px;">
+    <span>Page {page_num} Breakdown</span>
+    <span>Width: {row.get('page_width_px', 0)}px | Height: {row.get('page_height_px', 0)}px</span>
+  </div>
+  <div style="display: flex; width: 100%; height: 20px; border-radius: 4px; overflow: hidden; background: #E2E8F0;">""")
+
+            if clean > 0:
+                page_html_parts.append(f'<div style="width: {clean:.2f}%; background: #10B981; height: 100%;" title="Clean Text: {clean:.1f}%"></div>')
+            if faded > 0:
+                page_html_parts.append(f'<div style="width: {faded:.2f}%; background: #3B82F6; height: 100%;" title="Faded Text: {faded:.1f}%"></div>')
+            if logo > 0:
+                page_html_parts.append(f'<div style="width: {logo:.2f}%; background: #8B5CF6; height: 100%;" title="Logo: {logo:.1f}%"></div>')
+            if stamp > 0:
+                page_html_parts.append(f'<div style="width: {stamp:.2f}%; background: #F59E0B; height: 100%;" title="Stamp: {stamp:.1f}%"></div>')
+            if handwritten > 0:
+                page_html_parts.append(f'<div style="width: {handwritten:.2f}%; background: #EC4899; height: 100%;" title="Handwritten: {handwritten:.1f}%"></div>')
+            if whitespace > 0:
+                page_html_parts.append(f'<div style="width: {whitespace:.2f}%; background: #F3F4F6; border-left: 1px solid #D1D5DB; border-right: 1px solid #D1D5DB; height: 100%;" title="Whitespace: {whitespace:.1f}%"></div>')
+            if noise > 0:
+                page_html_parts.append(f'<div style="width: {noise:.2f}%; background: #6B7280; height: 100%;" title="Noise: {noise:.1f}%"></div>')
+
+            page_html_parts.append("""</div>
+  <!-- Numeric breakdown tooltip inline -->
+  <div style="display: flex; gap: 8px; font-size: 10px; color: #64748B; margin-top: 4px; flex-wrap: wrap;">""")
+            if clean > 0: page_html_parts.append(f'<span>🟢 Text: {clean:.1f}%</span>')
+            if faded > 0: page_html_parts.append(f'<span>🔵 Faded: {faded:.1f}%</span>')
+            if logo > 0: page_html_parts.append(f'<span>🟣 Logo: {logo:.1f}%</span>')
+            if stamp > 0: page_html_parts.append(f'<span>🟡 Stamp: {stamp:.1f}%</span>')
+            if handwritten > 0: page_html_parts.append(f'<span>💗 Hand: {handwritten:.1f}%</span>')
+            if whitespace > 0: page_html_parts.append(f'<span>⚪ WS: {whitespace:.1f}%</span>')
+            if noise > 0: page_html_parts.append(f'<span>⚫ Noise: {noise:.1f}%</span>')
+            page_html_parts.append("</div></div>")
+
+            st.markdown("".join(page_html_parts), unsafe_allow_html=True)
+
+
+def _run_auto_tagging(
+    accepted_review_id: str,
+    smart_id: str,
+    visual_memory: Any,
+    working_root: str,
+    db_conn=None,
+) -> int:
+    """Run auto-tagging: after accepting one snippet, auto-accept similar pending siblings.
+
+    Args:
+        accepted_review_id: The review_id that was just accepted.
+        smart_id: The document ID.
+        visual_memory: VisualMemoryEngine instance.
+        working_root: Path to the working root directory (for vector resolution).
+        db_conn: Optional SQLite connection for testing.
+
+    Returns:
+        Number of snippets auto-tagged.
+    """
+    if visual_memory is None:
+        return 0
+
+    try:
+        if db_conn is not None:
+            rows = db_conn.execute(
+                """SELECT review_id, snippet_type, snippet_path, extracted_text
+                   FROM snippet_reviews
+                   WHERE smart_id=? AND status='pending' AND review_id!=?""",
+                (smart_id, accepted_review_id)
+            ).fetchall()
+            all_reviews = [dict(r) for r in rows]
+        else:
+            all_reviews = get_all_reviews_for_doc(smart_id)
+            all_reviews = [r for r in all_reviews
+                           if r.get("status") == "pending"
+                           and r.get("review_id") != accepted_review_id]
+
+        vector_dir = Path(working_root) / "data" / "visual_memory" / smart_id
+        auto_count = 0
+
+        for sibling in all_reviews:
+            sib_id = sibling.get("review_id") or sibling[0]
+            sib_path = sibling.get("snippet_path") or sibling[2]
+            sib_type = sibling.get("snippet_type") or sibling[1]
+            sib_text = sibling.get("extracted_text") or (sibling[3] if isinstance(sibling, tuple) and len(sibling) > 3 else None)
+
+            ELIGIBLE_AUTO_TAG_TYPES = {"signature", "stamp", "logo"}
+            if sib_type not in ELIGIBLE_AUTO_TAG_TYPES:
+                continue
+
+            resolved = _resolve_snippet_path(str(sib_path), working_root)
+            if not resolved or not Path(resolved).exists():
+                continue
+            try:
+                is_match, _ = visual_memory.match_snippet(
+                    candidate_image_path=resolved,
+                    approved_vectors_dir=str(vector_dir),
+                    threshold=0.90,
+                    candidate_text=sib_text,
+                )
+                if is_match:
+                    update_snippet_review_status(
+                        sib_id,
+                        status="accepted",
+                        review_reason=f"Auto-tagged from {accepted_review_id}",
+                        db_conn=db_conn,
+                    )
+                    auto_count += 1
+            except Exception:
+                pass
+
+        return auto_count
+    except Exception:
+        return 0
+
+
+def _update_opensearch_with_retry(
+    os_client: Any,
+    smart_id: str,
+    updates: Dict[str, Any],
+    max_retries: int = 3,
+    delay_s: float = 0.5,
+) -> Optional[Any]:
+    """Update OpenSearch document with automatic retry on version conflicts.
+
+    Args:
+        os_client: OpenSearch client instance with update_document method.
+        smart_id: Document ID to update.
+        updates: Dict of field updates to apply.
+        max_retries: Maximum number of retry attempts.
+        delay_s: Initial delay between retries (doubles each attempt).
+
+    Returns:
+        The result of the successful update, or None if all retries failed.
+    """
+    import time
+    last_exc = None
+    for attempt in range(max_retries):
+        try:
+            return os_client.update_document(smart_id, updates)
+        except Exception as exc:
+            last_exc = exc
+            if attempt < max_retries - 1:
+                time.sleep(delay_s * (2 ** attempt))
+    if last_exc:
+        raise last_exc
+    return None
+
+
+
 def _is_obvious_noise_review_snippet(snippet: Dict[str, Any], working_root: Path) -> bool:
     """Identify sparse dot/blob snippets that should not appear in visual review queue."""
     if snippet.get("status") != "pending":
@@ -355,7 +687,7 @@ def _is_obvious_noise_review_snippet(snippet: Dict[str, Any], working_root: Path
             pass
 
     snippet_path = _resolve_snippet_path(Path(snippet.get("snippet_path", "")), working_root)
-    if not snippet_path.exists():
+    if not snippet_path:
         return False
 
     try:
@@ -397,7 +729,7 @@ def _is_printed_font_review_snippet(snippet: Dict[str, Any], working_root: Path)
         return False
 
     snippet_path = _resolve_snippet_path(Path(snippet.get("snippet_path", "")), working_root)
-    if not snippet_path.exists():
+    if not snippet_path:
         return False
 
     try:
@@ -479,7 +811,7 @@ def _is_text_like_review_snippet(snippet: Dict[str, Any], working_root: Path) ->
         return False
 
     snippet_path = _resolve_snippet_path(Path(snippet.get("snippet_path", "")), working_root)
-    if not snippet_path.exists():
+    if not snippet_path:
         return False
 
     tesseract = _get_review_tesseract()
@@ -532,388 +864,543 @@ def _render_snippet_card(
     accuracy_impact = snippet["accuracy_impact"]
     reviewer_role = snippet["reviewer_role"]
     status = snippet.get("status", "pending")
+    extracted_text = snippet.get("extracted_text", "")
 
     type_cfg = SNIPPET_TYPE_CONFIG.get(snippet_type, SNIPPET_TYPE_CONFIG["signature"])
     status_cfg = STATUS_BADGES.get(status, STATUS_BADGES["pending"])
-    file_path = str(snippet.get("file_path") or "")
+    file_path = _resolve_document_path(snippet.get("file_path"))
     doc_link = _build_document_page_link(file_path=file_path, page_num=int(page_num or 1))
 
-    card_padding = "0.85rem" if compact else "1.2rem"
-    label_font = "0.72rem" if compact else "0.75rem"
-    tag_padding = "0.25rem 0.55rem" if compact else "0.3rem 0.7rem"
-
-    # ── Card container ──
-    st.markdown(
-        f"""
-        <div style="
-            border: 1px solid {type_cfg['border']};
-            border-radius: 12px;
-            padding: {card_padding};
-            background: linear-gradient(135deg, {type_cfg['bg']} 0%, #FFFFFF 100%);
-            margin-bottom: 0.55rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        ">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                <div style="display:flex; align-items:center; gap:0.5rem;">
-                    <span style="
-                        background:{type_cfg['color']};
-                        color:white;
-                        font-size:{label_font};
-                        font-weight:700;
-                        padding:{tag_padding};
-                        border-radius:6px;
-                        letter-spacing:0.3px;
-                    ">{type_cfg['icon']} {type_cfg['label']}</span>
-                    <span style="
-                        font-size:{label_font};
-                        color:#6B7280;
-                        font-weight:500;
-                        background:#F3F4F6;
-                        padding:0.2rem 0.45rem;
-                        border-radius:4px;
-                    ">📄 Page {page_num}</span>
-                </div>
-                <span style="
-                    background:{status_cfg['bg']};
-                    color:{status_cfg['color']};
-                    font-size:{label_font};
-                    font-weight:600;
-                    padding:0.2rem 0.5rem;
-                    border-radius:5px;
-                    border: 1px solid {status_cfg['color']}22;
-                ">{status_cfg['label']}</span>
-            </div>
-            <div style="display:flex; gap:1.5rem; align-items:flex-start; flex-wrap:wrap;">
-                <div style="flex:0 0 auto;">
-                    <div style="font-size:{label_font}; color:#374151; margin-bottom:0.24rem;">
-                        <b>Accuracy Impact:</b>
-                        <span style="color:#DC2626; font-weight:700; font-size:0.82rem;">
-                            −{accuracy_impact:.2f}%
-                        </span>
-                    </div>
-                    <div style="font-size:{label_font}; color:#374151;">
-                        <b>Assigned To:</b>
-                        <span style="font-weight:500; color:{type_cfg['color']};">{reviewer_role}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if doc_link and file_path:
-        # Use native OS file opener via button callback (bypasses all browser restrictions)
-        def open_source_file():
-            """Open file with system default application to specific page."""
-            try:
-                page_num_int = int(page_num or 1)
-                file_path_str = str(file_path)
-                
-                if os.name == 'nt':  # Windows
-                    # Try Adobe Reader with page parameter first
-                    try:
-                        # Adobe Reader command: AcroRd32.exe /A "page=X=OpenActions" file.pdf
-                        subprocess.run(
-                            [r'AcroRd32.exe', f'/A', f'page={page_num_int}', file_path_str],
-                            check=False,
-                            timeout=5
-                        )
-                    except (FileNotFoundError, subprocess.TimeoutExpired):
-                        # Fallback: Try Acrobat
-                        try:
-                            subprocess.run(
-                                [r'Acrobat.exe', f'/A', f'page={page_num_int}', file_path_str],
-                                check=False,
-                                timeout=5
-                            )
-                        except (FileNotFoundError, subprocess.TimeoutExpired):
-                            # Final fallback: Use default app (won't open to page, but will work)
-                            os.startfile(file_path_str)
-                elif os.uname().sysname == 'Darwin':  # macOS
-                    # macOS: use open with -a for app and page parameter via URL scheme
-                    file_uri = Path(file_path_str).resolve().as_uri()
-                    if page_num_int > 1:
-                        file_uri += f'#page={page_num_int}'
-                    subprocess.run(['open', file_uri], check=True)
-                else:  # Linux
-                    # Linux: xdg-open respects file:// URLs with #page anchor
-                    file_uri = Path(file_path_str).resolve().as_uri()
-                    if page_num_int > 1:
-                        file_uri += f'#page={page_num_int}'
-                    subprocess.run(['xdg-open', file_uri], check=True)
-            except Exception as e:
-                st.error(f"Failed to open file: {e}")
+    # Wrap the entire card in a container with a border
+    with st.container(border=True):
+        # Anchor div for CSS selectors to target container and apply premium hovers and shadows
+        st.markdown(f'<div class="snippet-card-anchor {status}"></div>', unsafe_allow_html=True)
         
-        col_open, _ = st.columns([2, 3])
-        with col_open:
-            st.button(
-                f"🔗",
-                on_click=open_source_file,
-                key=f"open_doc_{review_id}",
-                help="Opens the source document to the specified page with your default PDF viewer"
+        # ── Row 1: Header (Type tag, Page Number / Link) ──
+        # Render type badge and page link in a single HTML flexbox row to ensure perfect vertical alignment
+        page_link_html = (
+            f'<a href="{doc_link}" target="_blank" style="text-decoration:none; background:#F1F5F9; color:#475569; font-size:0.71rem; font-weight:500; padding:0.2rem 0.5rem; border-radius:4px; border:1px solid #E2E8F0; white-space:nowrap; display:inline-flex; align-items:center; gap:0.2rem;">'
+            f'📄 P. {page_num} 🔗</a>'
+            if doc_link and file_path else
+            f'<span style="background:#F1F5F9; color:#94A3B8; font-size:0.71rem; padding:0.2rem 0.5rem; border-radius:4px; border:1px solid #E2E8F0;">📄 P. {page_num}</span>'
+        )
+        st.markdown(f"""
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem; margin-top:2px;">
+                <span style="
+                    background: {type_cfg['bg']};
+                    color: {type_cfg['color']};
+                    font-size: 0.72rem;
+                    font-weight: 600;
+                    padding: 0.2rem 0.55rem;
+                    border-radius: 4px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                    white-space: nowrap;
+                ">{type_cfg['icon']} {type_cfg['label']}</span>
+                {page_link_html}
+            </div>
+        """, unsafe_allow_html=True)
+
+        # ── Row 2: Render Snippet Image ──
+        if snippet_path:
+            try:
+                img = Image.open(str(snippet_path))
+                if compact:
+                    thumb = _build_uniform_thumbnail(img, width=480, height=160)
+                    st.image(thumb, use_column_width=True)
+                else:
+                    st.image(img, use_column_width=True)
+            except Exception as img_err:
+                st.error(f"Could not load snippet image: {img_err}")
+        else:
+            orig_name = Path(snippet.get("snippet_path", "")).name
+            st.warning(f"Snippet file not found: `{orig_name}`")
+
+        # ── Row 3: Metadata Details (Notion-style property grid) ──
+        st.markdown(f"""
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2E8F0; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.75rem; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                <tbody>
+                    <tr style="border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 0.4rem 0.6rem; color: #64748B; font-weight: 500; background: #FAFAFB; width: 45%; border-right: 1px solid #E2E8F0;">Status</td>
+                        <td style="padding: 0.4rem 0.6rem; text-align: right;">
+                            <span style="background: {status_cfg['bg']}; color: {status_cfg['color']}; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 500; font-size: 0.7rem;">{status_cfg['label']}</span>
+                        </td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 0.4rem 0.6rem; color: #64748B; font-weight: 500; background: #FAFAFB; border-right: 1px solid #E2E8F0;">Role</td>
+                        <td style="padding: 0.4rem 0.6rem; color: #1E293B; font-weight: 500; text-align: right;">{reviewer_role}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.4rem 0.6rem; color: #64748B; font-weight: 500; background: #FAFAFB; border-right: 1px solid #E2E8F0;">Accuracy Impact</td>
+                        <td style="padding: 0.4rem 0.6rem; color: #DC2626; font-weight: 600; text-align: right;">-{accuracy_impact:.2f}%</td>
+                    </tr>
+                </tbody>
+            </table>
+        """, unsafe_allow_html=True)
+
+        with st.expander("Tesseract Extracted", expanded=False):
+            st.code(
+                extracted_text if extracted_text.strip() else "(empty)",
+                language=None,
             )
 
-    # ── Render image ──
-    if snippet_path.exists():
-        try:
-            img = Image.open(str(snippet_path))
-            if compact:
-                thumb = _build_uniform_thumbnail(img, width=520, height=280)
-                st.image(
-                    thumb,
-                    use_column_width=True,
-                    caption=f"{type_cfg['icon']} Page {page_num} | −{accuracy_impact:.2f}%",
-                )
-            else:
-                st.image(
-                    img,
-                    use_column_width=True,
-                    caption=f"{type_cfg['icon']} {type_cfg['label']} — Page {page_num} | Impact: −{accuracy_impact:.2f}%",
-                )
-        except Exception as img_err:
-            st.error(f"Could not load snippet image: {img_err}")
-    else:
-        st.warning(f"Snippet file not found: `{snippet_path.name}`")
-
-    # ── Review reason + review metadata for already-reviewed items ──
-    if status in ("accepted", "rejected"):
-        reason = snippet.get("review_reason", "")
-        reviewed_by = snippet.get("reviewed_by", "")
-        reviewed_at = snippet.get("reviewed_at", "")
-        action_label = "Accepted" if status == "accepted" else "Rejected"
-        st.markdown(
-            f"""
-            <div style="
-                background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px;
-                padding:0.6rem 0.8rem; margin-top:0.3rem; font-size:0.75rem; color:#374151;
-            ">
-                <b>{action_label}</b> by <i>{reviewed_by or 'Unknown'}</i>
-                {f'on {reviewed_at[:19]}' if reviewed_at else ''}<br/>
-                {f'<b>Reason:</b> {reason}' if reason else ''}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        return  # No action buttons for already-reviewed items
-
-    # ── Action buttons for pending items ──
-    # Acceptance reason selector
-    type_reasons = ACCEPTANCE_REASONS.get(snippet_type, []) + GENERIC_REASONS
-    reason_key = f"reason_{review_id}"
-    custom_key = f"custom_reason_{review_id}"
-
-    selected_reason = st.selectbox(
-        "Acceptance Reason",
-        options=type_reasons,
-        key=reason_key,
-        label_visibility="collapsed",
-        help="Select or type a reason for accepting this visual element",
-    )
-
-    # Show custom text field if "Custom reason..." is selected
-    custom_reason_text = ""
-    if selected_reason == "Custom reason...":
-        custom_reason_text = st.text_input(
-            "Enter custom reason:",
-            key=custom_key,
-            placeholder="Describe why this element should be accepted...",
-        )
-
-    final_reason = custom_reason_text if selected_reason == "Custom reason..." else selected_reason
-
-    # Action buttons
-    btn_col1, btn_col2 = st.columns([1, 1])
-    with btn_col1:
-        if st.button(
-            "✅ Accept & Learn",
-            key=f"btn_acc_{review_id}",
-            type="primary",
-            use_container_width=True,
-        ):
-            st.session_state["active_review_editor"] = review_id
-            st.rerun()
-
-    with btn_col2:
-        if st.button(
-            "❌ Reject",
-            key=f"btn_rej_{review_id}",
-            use_container_width=True,
-        ):
-            try:
-                update_snippet_review_status(
-                    review_id=review_id,
-                    status="rejected",
-                    review_reason="Rejected — baseline accuracy maintained",
-                    reviewed_by="Dashboard User",
-                )
-                st.toast("❌ Rejected — baseline accuracy maintained.", icon="🚫")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Failed to reject snippet: {e}")
-
-    if st.session_state.get("active_review_editor") == review_id:
-        st.markdown(
-            f"""
-            <div style="
-                margin-top:0.6rem; border:1px solid #BFDBFE; border-radius:10px;
-                background:#EFF6FF; padding:0.7rem;
-            ">
-                <div style="font-size:0.82rem; font-weight:700; color:#1E3A8A; margin-bottom:0.15rem;">
-                    📝 {reviewer_role} Verification Window
+        # ── Row 4: Review reason + review metadata for already-reviewed items ──
+        if status in ("accepted", "rejected"):
+            reason = snippet.get("review_reason", "")
+            reviewed_by = snippet.get("reviewed_by", "")
+            reviewed_at = snippet.get("reviewed_at", "")
+            action_label = "Accepted" if status == "accepted" else "Rejected"
+            st.markdown(
+                f"""
+                <div style="
+                    background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px;
+                    padding:0.6rem 0.8rem; margin-top:0.3rem; font-size:0.75rem; color:#334155;
+                ">
+                    <b>{action_label}</b> by <i>{reviewed_by or 'Unknown'}</i>
+                    {f'on {reviewed_at[:19]}' if reviewed_at else ''}<br/>
+                    {f'<b>Reason:</b> {reason}' if reason else ''}
                 </div>
-                <div style="font-size:0.74rem; color:#334155;">Type visible content, then submit to accept and auto-tag similar pending snippets.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+                """,
+                unsafe_allow_html=True,
+            )
+            return
+
+        # ── Row 5: Action buttons for pending items ──
+        type_reasons = ACCEPTANCE_REASONS.get(snippet_type, []) + GENERIC_REASONS
+        reason_key = f"reason_{review_id}"
+        custom_key = f"custom_reason_{review_id}"
+
+        selected_reason = st.selectbox(
+            "Acceptance Reason",
+            options=type_reasons,
+            key=reason_key,
+            label_visibility="collapsed",
+            help="Select or type a reason for accepting this visual element",
         )
 
-        if snippet_path.exists():
-            try:
-                preview_img = Image.open(str(snippet_path))
-                st.image(_build_uniform_thumbnail(preview_img, width=640, height=220), use_column_width=True)
-            except Exception:
-                pass
+        # Show custom text field if "Custom reason..." is selected
+        custom_reason_text = ""
+        if selected_reason == "Custom reason...":
+            custom_reason_text = st.text_input(
+                "Enter custom reason:",
+                key=custom_key,
+                placeholder="Describe why this element should be accepted...",
+            )
 
-        text_key = f"typed_content_{review_id}"
-        typed_content = st.text_area(
-            "Content in this snippet",
-            key=text_key,
-            placeholder=f"{reviewer_role} types here...",
-            height=90,
-        )
+        final_reason = custom_reason_text if selected_reason == "Custom reason..." else selected_reason
 
-        submit_col, cancel_col = st.columns(2)
-        with submit_col:
-            if st.button("Submit & Accept", key=f"submit_accept_{review_id}", type="primary", use_container_width=True):
-                if not final_reason or final_reason == "Custom reason...":
-                    st.warning("⚠️ Please select or enter an acceptance reason before approving.")
-                    return
-                typed = (typed_content or "").strip()
-                if not typed:
-                    st.warning("⚠️ Please enter the visible content before accepting.")
-                    return
+        # Action buttons
+        btn_col1, btn_col2 = st.columns([1, 1])
+        with btn_col1:
+            st.markdown('<div class="accept-btn-marker" style="display:none;"></div>', unsafe_allow_html=True)
+            if st.button(
+                "Accept & Learn",
+                key=f"btn_acc_{review_id}",
+                type="primary",
+                use_container_width=True,
+            ):
+                st.session_state["active_review_editor"] = review_id
+                st.rerun()
 
-                matched_vector_path = None
-                vector_dir = working_root / "data" / "visual_memory" / snippet["smart_id"]
-                if "visual_memory" in st.session_state and st.session_state.visual_memory and snippet_path.exists():
-                    try:
-                        candidate_vector = st.session_state.visual_memory.extract_vector(str(snippet_path))
-                        if candidate_vector is not None:
-                            vector_dir.mkdir(parents=True, exist_ok=True)
-                            vector_path = vector_dir / f"{review_id}.npy"
-                            np.save(str(vector_path), candidate_vector)
-                            matched_vector_path = str(vector_path)
-                    except Exception:
-                        pass
-
-                reason_with_text = f"{final_reason} | Role={reviewer_role} | Verified Content: {typed}"
+        with btn_col2:
+            st.markdown('<div class="reject-btn-marker" style="display:none;"></div>', unsafe_allow_html=True)
+            if st.button(
+                "Reject",
+                key=f"btn_rej_{review_id}",
+                use_container_width=True,
+            ):
                 try:
                     update_snippet_review_status(
                         review_id=review_id,
-                        status="accepted",
-                        feature_vector_path=matched_vector_path,
-                        review_reason=reason_with_text,
-                        reviewed_by=reviewer_role,
+                        status="rejected",
+                        review_reason="Rejected — baseline accuracy maintained",
+                        reviewed_by="Dashboard User",
                     )
-
-                    # ── Index reviewed snippet to OpenSearch for searchability ──
-                    try:
-                        doc_id = snippet["smart_id"]
-                        page_num_val = int(page_num or 1)
-                        
-                        # Create reviewed snippet entry
-                        reviewed_entry = {
-                            "page": page_num_val,
-                            "snippet_type": snippet_type,
-                            "verified_content": typed,
-                            "reviewer_role": reviewer_role,
-                            "acceptance_reason": final_reason,
-                            "reviewed_at": datetime.now().isoformat()
-                        }
-                        
-                        # Initialize OpenSearch client and append to reviewed_snippets
-                        try:
-                            os_client = OpenSearchClient()
-                            
-                            # Get current document to check for existing reviewed_snippets
-                            try:
-                                doc_response = os_client.client.get(index=os_client.index_name, id=doc_id)
-                                existing_reviewed = doc_response['_source'].get('reviewed_snippets', [])
-                            except Exception:
-                                # Document doesn't exist yet or can't be retrieved, start fresh
-                                existing_reviewed = []
-                            
-                            # Append new reviewed snippet
-                            reviewed_snippets = existing_reviewed + [reviewed_entry]
-                            
-                            # Update document with reviewed snippets and combined searchable content
-                            combined_content = " ".join([entry["verified_content"] for entry in reviewed_snippets])
-                            
-                            update_payload = {
-                                "reviewed_snippets": reviewed_snippets,
-                                "reviewed_content": combined_content
-                            }
-                            
-                            os_client.update_document(doc_id=doc_id, updates=update_payload)
-                        except Exception as index_error:
-                            # Log but don't fail the review acceptance
-                            pass
-                    except Exception as review_index_error:
-                        # Silent fail for indexing - doesn't block review acceptance
-                        pass
-
-                    auto_count = 0
-                    if "visual_memory" in st.session_state and st.session_state.visual_memory and vector_dir.exists():
-                        siblings = get_all_reviews_for_doc(snippet["smart_id"])
-                        for sib in siblings:
-                            if sib.get("status") != "pending":
-                                continue
-                            if sib.get("review_id") == review_id:
-                                continue
-                            if str(sib.get("snippet_type") or "") != str(snippet_type):
-                                continue
-
-                            sib_path = _resolve_snippet_path(Path(str(sib.get("snippet_path") or "")), working_root)
-                            if not sib_path.exists():
-                                continue
-
-                            try:
-                                is_match, matched_path = st.session_state.visual_memory.match_snippet(
-                                    candidate_image_path=str(sib_path),
-                                    approved_vectors_dir=str(vector_dir),
-                                    threshold=0.90,
-                                )
-                                if not is_match:
-                                    continue
-
-                                update_snippet_review_status(
-                                    review_id=str(sib.get("review_id")),
-                                    status="accepted",
-                                    feature_vector_path=matched_path,
-                                    review_reason=f"Auto-tagged from {review_id} | Role={reviewer_role} | Verified Content: {typed}",
-                                    reviewed_by=reviewer_role,
-                                )
-                                auto_count += 1
-                            except Exception:
-                                continue
-
-                    st.session_state.pop("active_review_editor", None)
-                    st.toast(f"✅ Accepted by {reviewer_role}. Auto-tagged {auto_count} similar snippet(s).", icon="✨")
+                    st.toast("❌ Rejected — baseline accuracy maintained.", icon="🚫")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Failed to accept snippet: {e}")
-        with cancel_col:
-            if st.button("Close", key=f"cancel_accept_{review_id}", use_container_width=True):
-                st.session_state.pop("active_review_editor", None)
-                st.rerun()
+                    st.error(f"Failed to reject snippet: {e}")
+
+        # ── Verification window (rendered inside the card) ──
+        if st.session_state.get("active_review_editor") == review_id:
+            st.markdown(
+                f"""
+                <div style="
+                    margin-top:0.6rem; border:1px solid #BFDBFE; border-radius:10px;
+                    background:#EFF6FF; padding:0.7rem;
+                ">
+                    <div style="font-size:0.82rem; font-weight:700; color:#1E3A8A; margin-bottom:0.15rem;">
+                        📝 Verification Window
+                    </div>
+                    <div style="font-size:0.74rem; color:#334155;">Verify OCR transcription below, then submit:</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            text_key = f"typed_content_{review_id}"
+            default_val = extracted_text if extracted_text else ""
+            typed_content = st.text_area(
+                "Content in this snippet",
+                value=default_val,
+                key=text_key,
+                placeholder=f"{reviewer_role} types here...",
+                height=90,
+                label_visibility="collapsed",
+            )
+
+            submit_col, cancel_col = st.columns(2)
+            with submit_col:
+                st.markdown('<div class="submit-accept-btn-marker" style="display:none;"></div>', unsafe_allow_html=True)
+                if st.button("Submit & Accept", key=f"submit_accept_{review_id}", type="primary", use_container_width=True):
+                    if not final_reason or final_reason == "Custom reason...":
+                        st.warning("⚠️ Please select or enter an acceptance reason before approving.")
+                        return
+                    typed = (typed_content or "").strip()
+                    if not typed:
+                        st.warning("⚠️ Please enter the visible content before accepting.")
+                        return
+
+                    matched_vector_path = None
+                    vector_dir = working_root / "data" / "visual_memory" / snippet["smart_id"]
+                    global_vector_dir = working_root / "data" / "visual_memory" / "global"
+                    if "visual_memory" in st.session_state and st.session_state.visual_memory and snippet_path:
+                        try:
+                            candidate_vector = st.session_state.visual_memory.extract_vector(str(snippet_path))
+                            if candidate_vector is not None:
+                                # Save locally
+                                vector_dir.mkdir(parents=True, exist_ok=True)
+                                vector_path = vector_dir / f"{review_id}.npy"
+                                np.save(str(vector_path), candidate_vector)
+                                matched_vector_path = str(vector_path)
+                                
+                                # Save globally
+                                global_vector_dir.mkdir(parents=True, exist_ok=True)
+                                global_vector_path = global_vector_dir / f"{review_id}.npy"
+                                np.save(str(global_vector_path), candidate_vector)
+                        except Exception:
+                            pass
+
+                    reason_with_text = f"{final_reason} | Role={reviewer_role} | Verified Content: {typed}"
+                    try:
+                        update_snippet_review_status(
+                            review_id=review_id,
+                            status="accepted",
+                            feature_vector_path=matched_vector_path,
+                            review_reason=reason_with_text,
+                            reviewed_by=reviewer_role,
+                            transcription_text=typed,
+                        )
+
+                        # ── Index reviewed snippet to OpenSearch for searchability ──
+                        try:
+                            doc_id = snippet.get("file_key") or _get_file_key(snippet["smart_id"])
+                            page_num_val = int(page_num or 1)
+                            
+                            # Create reviewed snippet entry
+                            reviewed_entry = {
+                                "page": page_num_val,
+                                "snippet_type": snippet_type,
+                                "verified_content": typed,
+                                "reviewer_role": reviewer_role,
+                                "acceptance_reason": final_reason,
+                                "reviewed_at": datetime.now().isoformat()
+                            }
+                            
+                            # Initialize OpenSearch client and append to reviewed_snippets
+                            try:
+                                os_client = OpenSearchClient()
+                                
+                                # Get current document to check for existing reviewed_snippets
+                                try:
+                                    doc_response = os_client.client.get(index=os_client.index_name, id=doc_id)
+                                    existing_reviewed = doc_response['_source'].get('reviewed_snippets', [])
+                                except Exception:
+                                    # Document doesn't exist yet or can't be retrieved, start fresh
+                                    existing_reviewed = []
+                                
+                                # Append new reviewed snippet
+                                reviewed_snippets = existing_reviewed + [reviewed_entry]
+                                
+                                # Update document with reviewed snippets and combined searchable content
+                                combined_content = " ".join([entry["verified_content"] for entry in reviewed_snippets])
+                                
+                                update_payload = {
+                                    "reviewed_snippets": reviewed_snippets,
+                                    "reviewed_content": combined_content
+                                }
+                                
+                                os_client.update_document(doc_id=doc_id, updates=update_payload)
+                            except Exception as index_error:
+                                add_opensearch_retry(
+                                    smart_id=snippet["smart_id"],
+                                    review_id=review_id,
+                                    payload={
+                                        "reviewed_snippets": [reviewed_entry],
+                                        "reviewed_content": typed
+                                    }
+                                )
+                        except Exception as review_index_error:
+                            try:
+                                add_opensearch_retry(
+                                    smart_id=snippet["smart_id"],
+                                    review_id=review_id,
+                                    payload={
+                                        "reviewed_snippets": [{
+                                            "page": int(page_num or 1),
+                                            "snippet_type": snippet_type,
+                                            "verified_content": typed,
+                                            "reviewer_role": reviewer_role,
+                                            "acceptance_reason": final_reason,
+                                            "reviewed_at": datetime.now().isoformat()
+                                        }],
+                                        "reviewed_content": typed
+                                    }
+                                )
+                            except Exception:
+                                pass
+
+                        auto_count = 0
+                        ELIGIBLE_AUTO_TAG_TYPES = {"signature", "stamp", "logo"}
+                        if snippet_type in ELIGIBLE_AUTO_TAG_TYPES and "visual_memory" in st.session_state and st.session_state.visual_memory and vector_dir.exists():
+                            siblings = get_all_reviews_for_doc(snippet["smart_id"])
+                            for sib in siblings:
+                                if sib.get("status") != "pending":
+                                    continue
+                                if sib.get("review_id") == review_id:
+                                    continue
+                                if str(sib.get("snippet_type") or "") != str(snippet_type):
+                                    continue
+
+                                sib_path = _resolve_snippet_path(Path(str(sib.get("snippet_path") or "")), working_root)
+                                if not sib_path:
+                                    continue
+
+                                try:
+                                    is_match, matched_path = st.session_state.visual_memory.match_snippet(
+                                        candidate_image_path=str(sib_path),
+                                        approved_vectors_dir=str(vector_dir),
+                                        threshold=0.90,
+                                        candidate_text=sib.get("transcription_text") or sib.get("extracted_text"),
+                                    )
+                                    if not is_match:
+                                        continue
+
+                                    update_snippet_review_status(
+                                        review_id=str(sib.get("review_id")),
+                                        status="accepted",
+                                        feature_vector_path=matched_path,
+                                        review_reason=f"Auto-tagged from {review_id} | Role={reviewer_role} | Verified Content: {typed}",
+                                        reviewed_by=reviewer_role,
+                                        transcription_text=typed,
+                                    )
+                                    auto_count += 1
+                                except Exception:
+                                    continue
+
+                        st.session_state.pop("active_review_editor", None)
+                        st.toast(f"✅ Accepted by {reviewer_role}. Auto-tagged {auto_count} similar snippet(s).", icon="✨")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to accept snippet: {e}")
+            with cancel_col:
+                if st.button("Close", key=f"cancel_accept_{review_id}", use_container_width=True):
+                    st.session_state.pop("active_review_editor", None)
+                    st.rerun()
+
+def _get_file_key(smart_id: str) -> str:
+    """Resolve smart_id to file_key by querying file_state in audit.db.
+    If not found, fallback to smart_id.
+    """
+    try:
+        from core.config_manager import get_config
+        config = get_config()
+        db_path = Path(config.paths.working_root) / "audit" / "audit.db"
+        if db_path.exists():
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+            cursor.execute("SELECT file_key FROM file_state WHERE smart_id = ?", (smart_id,))
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                return row[0]
+    except Exception:
+        pass
+    return smart_id
+
+def process_opensearch_retry_queue() -> None:
+    """Attempt to flush pending entries in the OpenSearch retry queue."""
+    try:
+        retries = get_pending_opensearch_retries()
+    except Exception:
+        return
+    if not retries:
+        return
+
+    try:
+        os_client = OpenSearchClient()
+    except Exception:
+        return
+
+    for entry in retries:
+        entry_id = entry["id"]
+        smart_id = entry["smart_id"]
+        doc_id = _get_file_key(smart_id)
+        attempt_count = entry.get("attempt_count", 0) + 1
+        
+        try:
+            payload = json.loads(entry["payload_json"])
+            try:
+                doc_response = os_client.client.get(index=os_client.index_name, id=doc_id)
+                existing_reviewed = doc_response['_source'].get('reviewed_snippets', [])
+            except Exception:
+                existing_reviewed = []
+
+            new_snippets = payload.get("reviewed_snippets", [])
+            merged_snippets = list(existing_reviewed)
+            for ns in new_snippets:
+                if not any(es.get("page") == ns.get("page") and es.get("snippet_type") == ns.get("snippet_type") and es.get("verified_content") == ns.get("verified_content") for es in merged_snippets):
+                    merged_snippets.append(ns)
+            
+            combined_content = " ".join([e.get("verified_content", "") for e in merged_snippets])
+            
+            update_payload = {
+                "reviewed_snippets": merged_snippets,
+                "reviewed_content": combined_content
+            }
+            
+            os_client.update_document(doc_id=doc_id, updates=update_payload)
+            update_opensearch_retry(entry_id, status="completed", attempt_count=attempt_count)
+        except Exception:
+            new_status = "failed" if attempt_count >= 5 else "pending"
+            update_opensearch_retry(entry_id, status=new_status, attempt_count=attempt_count)
+
 
 def render_snippet_review_tab(config: Any) -> None:
     """Render the production-grade HITL Visual Verification Portal."""
+    process_opensearch_retry_queue()
 
-    # ── Page Header ──
+    # ── Page Header & Custom CSS Stylesheet ──
     st.markdown(
         """
+        <style>
+        /* CSS to style standard Streamlit container with border for premium snippet card */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor) {
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 14px !important;
+            background: #FFFFFF !important;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03) !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            padding: 1rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor):hover {
+            transform: translateY(-3px) !important;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.07) !important;
+            border-color: #CBD5E1 !important;
+        }
+
+        /* Dim and color-code accepted cards */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor.accepted) {
+            border: 1px solid #A7F3D0 !important;
+            background-color: #FAFAF9 !important;
+            opacity: 0.65 !important;
+            box-shadow: none !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor.accepted):hover {
+            opacity: 1.0 !important;
+            border-color: #34D399 !important;
+        }
+
+        /* Dim and color-code rejected cards */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor.rejected) {
+            border: 1px solid #FECACA !important;
+            background-color: #FAFAF9 !important;
+            opacity: 0.65 !important;
+            box-shadow: none !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor.rejected):hover {
+            opacity: 1.0 !important;
+            border-color: #F87171 !important;
+        }
+
+        /* Crop image framed preview */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor) div[data-testid="stImage"] {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            background-color: #F8FAFC !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 8px !important;
+            overflow: hidden !important;
+            padding: 0 !important;
+            margin: 0.35rem 0 !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor) div[data-testid="stImage"] img {
+            width: 100% !important;
+            height: auto !important;
+            object-fit: contain !important;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+
+        /* Hover zoom micro-animation */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor) div[data-testid="stImage"]:hover img {
+            transform: scale(1.05) !important;
+        }
+
+        /* Hide fullscreen expand button inside card images to prevent Streamlit layout engine crashing/flickering */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor) button[title*="fullscreen"],
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor) button[data-testid="stImageFullscreenButton"],
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor) div[data-testid="stImage"] button {
+            display: none !important;
+        }
+
+        /* Style selectbox input */
+        div[data-testid="stSelectbox"] {
+            margin-top: 0.25rem !important;
+        }
+
+        /* Style the buttons in card columns */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(div.snippet-card-anchor) button {
+            border-radius: 6px !important;
+            font-size: 0.75rem !important;
+            font-weight: 500 !important;
+            padding: 0.3rem 0.6rem !important;
+            transition: all 0.2s ease !important;
+            box-shadow: none !important;
+        }
+
+        /* Notion-style Accept button */
+        div[data-testid="column"]:has(div.accept-btn-marker) button,
+        div[data-testid="column"]:has(div.submit-accept-btn-marker) button {
+            background-color: #e3f2e7 !important;
+            border: 1px solid rgba(43, 89, 63, 0.15) !important;
+            color: #1e5230 !important;
+        }
+        div[data-testid="column"]:has(div.accept-btn-marker) button:hover,
+        div[data-testid="column"]:has(div.submit-accept-btn-marker) button:hover {
+            background-color: #d2ebd9 !important;
+            border-color: rgba(43, 89, 63, 0.3) !important;
+        }
+
+        /* Notion-style Reject button */
+        div[data-testid="column"]:has(div.reject-btn-marker) button {
+            background-color: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #dc2626 !important;
+        }
+        div[data-testid="column"]:has(div.reject-btn-marker) button:hover {
+            background-color: #fdebeb !important;
+            border-color: #f8cdcd !important;
+            color: #b32b2b !important;
+        }
+        </style>
+        
         <div style="margin-bottom:0.5rem;">
             <h3 style="margin:0; color:#1E293B;">🔍 Visual Verification Portal</h3>
             <p style="margin:0.2rem 0 0 0; font-size:0.85rem; color:#64748B;">
@@ -1053,6 +1540,13 @@ def render_snippet_review_tab(config: Any) -> None:
             return
 
         # ── Status & Role filters ──
+        # Dynamically build role options from config + actual DB roles so the
+        # filter never silently hides snippets with unrecognised roles.
+        reviewer_roles_cfg = dict(getattr(config.ocr, "reviewer_roles", {}) or {})
+        known_roles = set(reviewer_roles_cfg.values())
+        actual_roles = {s.get("reviewer_role", "") for s in all_snippets if s.get("reviewer_role")}
+        all_roles = sorted(known_roles | actual_roles)
+
         filter_col1, filter_col2 = st.columns(2)
         with filter_col1:
             status_filter = st.selectbox(
@@ -1064,10 +1558,10 @@ def render_snippet_review_tab(config: Any) -> None:
         with filter_col2:
             role_filter = st.selectbox(
                 "Filter by Reviewer Role",
-                ["All Roles", "Contract Auditor", "Operations Manager", "Marketing Reviewer", "Text Specialist"],
+                ["All Roles"] + all_roles,
                 index=0,
                 key="snippet_role_filter",
-                help="Contract Auditor: Signatures • Operations Manager: Stamps • Marketing Reviewer: Logos • Text Specialist: OCR Anomalies",
+                help="Roles are loaded dynamically from your config and the document's snippets.",
             )
 
         # Apply filters
@@ -1120,13 +1614,16 @@ def render_snippet_review_tab(config: Any) -> None:
             filtered = [
                 s for s in filtered
                 if str((s or {}).get("snippet_type", "")).lower() in allowed_types
+                or str((s or {}).get("snippet_type", "")).lower() == "faded_text"
             ]
 
         min_impact_by_type = {
             "signature": float(preprocessing_cfg.get("signature_min_impact", 0.0) or 0.0),
             "logo": float(preprocessing_cfg.get("logo_min_impact", 0.0) or 0.0),
             "stamp": float(preprocessing_cfg.get("stamp_min_impact", 0.0) or 0.0),
+            "handwritten": float(preprocessing_cfg.get("handwritten_min_impact", 0.0) or 0.0),
             "text_anomaly": float(preprocessing_cfg.get("text_anomaly_min_impact", 0.0) or 0.0),
+            "faded_text": float(preprocessing_cfg.get("faded_text_min_impact", 0.0) or 0.0),
         }
         filtered = [
             s for s in filtered
@@ -1160,27 +1657,29 @@ def render_snippet_review_tab(config: Any) -> None:
                 topk.extend(sorted_items)
             filtered = topk
 
-        # Auto-hide obvious dot/blob noise, printed-font text, and OCR text from queue.
+        # Auto-hide ONLY truly blank/zero-ink noise snippets.
+        # Do NOT suppress based on printed-font or text-like heuristics — those
+        # were causing legitimate stamps, handwriting, and signatures to disappear.
         hidden_noise_count = 0
-        hidden_text_count = 0
-        hidden_printed_count = 0
         visible_snippets = []
         for snippet in filtered:
             snippet_type = str((snippet or {}).get("snippet_type") or "").lower()
 
+            # Always keep non-pending snippets (accepted/rejected) in full view
+            if snippet.get("status") != "pending":
+                visible_snippets.append(snippet)
+                continue
+
+            # Force-keep signatures when the override flag is set
             if keep_signatures_visible and snippet_type == "signature":
                 visible_snippets.append(snippet)
                 continue
 
+            # Only suppress truly blank/zero-ink blobs
             if _is_obvious_noise_review_snippet(snippet, working_root):
                 hidden_noise_count += 1
                 continue
-            if _is_printed_font_review_snippet(snippet, working_root):
-                hidden_printed_count += 1
-                continue
-            if _is_text_like_review_snippet(snippet, working_root):
-                hidden_text_count += 1
-                continue
+
             visible_snippets.append(snippet)
         filtered = visible_snippets
 
@@ -1191,14 +1690,14 @@ def render_snippet_review_tab(config: Any) -> None:
         filtered = sorted(filtered, key=sort_priority)
 
         if hidden_noise_count > 0:
-            st.caption(f"Auto-hidden {hidden_noise_count} obvious noise snippets from review queue.")
-        if hidden_printed_count > 0:
-            st.caption(f"Auto-hidden {hidden_printed_count} printed-font snippets (not handwriting).")
-        if hidden_text_count > 0:
-            st.caption(f"Auto-hidden {hidden_text_count} text-like snippets (kept in OCR flow).")
+            st.caption(f"Auto-hidden {hidden_noise_count} blank/zero-ink noise snippets from review queue.")
 
-        st.markdown("<div style='margin:0.35rem 0 0.5rem 0;'><b>Accuracy Impact Waterfall</b></div>", unsafe_allow_html=True)
-        _render_accuracy_waterfall_chart(filtered, selected_doc)
+        view_tabs = st.tabs(["Waterfall Analysis", "Page Composition"])
+        with view_tabs[0]:
+            st.markdown("<div style='margin:0.35rem 0 0.5rem 0;'><b>Accuracy Impact Waterfall</b></div>", unsafe_allow_html=True)
+            _render_accuracy_waterfall_chart(filtered, selected_doc)
+        with view_tabs[1]:
+            _render_page_composition_bar(selected_doc)
 
         if not filtered:
             st.info(f"No snippets matching filters: Status={status_filter}, Role={role_filter} ({len(all_snippets)} total available)")
@@ -1209,8 +1708,8 @@ def render_snippet_review_tab(config: Any) -> None:
                 unsafe_allow_html=True,
             )
 
-            # ── Render snippet cards in compact 4-column tile layout ──
-            tiles_per_row = 4
+            # ── Render snippet cards in compact 3-column tile layout ──
+            tiles_per_row = 3
             for row_start in range(0, len(filtered), tiles_per_row):
                 cols = st.columns(tiles_per_row)
                 for col_idx in range(tiles_per_row):
@@ -1219,6 +1718,33 @@ def render_snippet_review_tab(config: Any) -> None:
                         continue
                     with cols[col_idx]:
                         _render_snippet_card(filtered[snippet_idx], working_root, snippet_idx, compact=True)
+
+        # Render Suppressed Items panel
+        suppressions = get_snippet_suppressions(selected_doc.get("smart_id"))
+        st.markdown("<div style='margin:1.0rem 0 0.5rem 0;'></div>", unsafe_allow_html=True)
+        with st.expander(f"🔇 Suppressed Items ({len(suppressions)})", expanded=False):
+            if not suppressions:
+                st.write("No items were suppressed for this document.")
+            else:
+                st.markdown(
+                    """
+                    <div style="font-size:0.82rem; color:#64748B; margin-bottom:0.75rem;">
+                        These items were automatically filtered out during processing based on configured heuristics.
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+                suppressed_data = []
+                for s in suppressions:
+                    suppressed_data.append({
+                        "Page": f"Page {s.get('page_num')}",
+                        "Type": str(s.get("snippet_type")).title(),
+                        "Reason": str(s.get("suppressed_by")).replace("_", " ").title(),
+                        "Impact": f"{s.get('accuracy_impact', 0.0):.2f}%",
+                        "Bbox": s.get("bbox_json"),
+                        "Time": s.get("suppressed_at")[:19].replace("T", " "),
+                    })
+                st.table(suppressed_data)
 
     # ════════════════════════════════════════════════════════════════════════
     # TAB 2: Activity Log
@@ -1281,6 +1807,55 @@ def render_snippet_review_tab(config: Any) -> None:
                     """,
                     unsafe_allow_html=True,
                 )
+                if action in ("accepted", "rejected"):
+                    btn_key = f"revert_btn_{entry.get('id')}_{entry.get('review_id')}"
+                    if st.button("↩ Revert Decision", key=btn_key, use_container_width=False):
+                        try:
+                            revert_snippet_review(entry.get("review_id"))
+                            
+                            # ── Sync Revert to OpenSearch ──
+                            try:
+                                doc_id = entry.get("smart_id")
+                                if doc_id:
+                                    os_doc_id = _get_file_key(doc_id)
+                                    os_client = OpenSearchClient()
+                                    remaining_snippets = get_all_reviews_for_doc(doc_id)
+                                    accepted_list = []
+                                    for r in remaining_snippets:
+                                        if r.get("status") == "accepted":
+                                            accepted_list.append({
+                                                "page": int(r.get("page_num") or 1),
+                                                "snippet_type": r.get("snippet_type"),
+                                                "verified_content": r.get("transcription_text") or "",
+                                                "reviewer_role": r.get("reviewed_by") or "Dashboard User",
+                                                "acceptance_reason": r.get("review_reason") or "",
+                                                "reviewed_at": r.get("reviewed_at") or datetime.now().isoformat()
+                                            })
+                                    combined_content = " ".join([item["verified_content"] for item in accepted_list])
+                                    update_payload = {
+                                        "reviewed_snippets": accepted_list,
+                                        "reviewed_content": combined_content
+                                    }
+                                    os_client.update_document(doc_id=os_doc_id, updates=update_payload)
+                            except Exception as os_revert_err:
+                                try:
+                                    doc_id = entry.get("smart_id")
+                                    if doc_id:
+                                        add_opensearch_retry(
+                                            smart_id=doc_id,
+                                            review_id=entry.get("review_id"),
+                                            payload={
+                                                "reviewed_snippets": [],
+                                                "reviewed_content": ""
+                                            }
+                                        )
+                                except Exception:
+                                    pass
+                            
+                            st.toast(f"Successfully reverted decision for {entry.get('review_id')}.", icon="↩")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Failed to revert decision: {e}")
 
     # ════════════════════════════════════════════════════════════════════════
     # TAB 3: Storage Management
