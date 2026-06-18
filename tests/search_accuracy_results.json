@@ -1,0 +1,1344 @@
+{
+  "total_tests": 28,
+  "passed": 27,
+  "failed": 1,
+  "pass_rate": 96.42857142857143,
+  "avg_search_time_ms": 56.59289870943342,
+  "results": [
+    {
+      "test_name": "basic_pdf",
+      "query": "pdf",
+      "query_type": "keyword",
+      "description": "Search for common file type keyword",
+      "passed": true,
+      "total_hits": 58,
+      "expected_min": 1,
+      "search_time_ms": 23.890972137451172,
+      "top_results": [
+        {
+          "score": 38.859047,
+          "file_name": "Marketing_Contract_Agreement_20250210_0372.pdf",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Contract_Agreement_20250210_0372.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Marketing_Contract_Agreement_20250210_0372.**pdf**"
+            ]
+          }
+        },
+        {
+          "score": 38.859047,
+          "file_name": "Marketing_Project_Status_Update_20250615_0294.pdf",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Project_Status_Update_20250615_0294.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Marketing_Project_Status_Update_20250615_0294.**pdf**"
+            ]
+          }
+        },
+        {
+          "score": 38.859047,
+          "file_name": "Marketing_Research_Findings_20251117_0493.pdf",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Research_Findings_20251117_0493.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Marketing_Research_Findings_20251117_0493.**pdf**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "basic_document",
+      "query": "document",
+      "query_type": "keyword",
+      "description": "Search for common document term",
+      "passed": true,
+      "total_hits": 314,
+      "expected_min": 0,
+      "search_time_ms": 32.955169677734375,
+      "top_results": [
+        {
+          "score": 2.860212,
+          "file_name": "HR_Marketing_Strategy_20250802_0271.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\HR_Marketing_Strategy_20250802_0271.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "All necessary **documentation** has been prepared and submitted to relevant authorities.",
+              "\\n\\nThis **document** outlines the key findings from our recent analysis."
+            ]
+          }
+        },
+        {
+          "score": 2.860212,
+          "file_name": "Sales_Quarterly_Financial_Report_20250724_0375.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Sales_Quarterly_Financial_Report_20250724_0375.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "All necessary **documentation** has been prepared and submitted to relevant authorities.",
+              "\\n\\nThis **document** outlines the key findings from our recent analysis."
+            ]
+          }
+        },
+        {
+          "score": 2.7955103,
+          "file_name": "Finance_Compliance_Documentation_20251022_0354.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Compliance_Documentation_20251022_0354.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Compliance **Documentation**\n\n\n    Compliance **Documentation**\n\n    Date: 2026-02-05\n\n    \n        This **document**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "basic_contract",
+      "query": "contract",
+      "query_type": "keyword",
+      "description": "Search for business term: contract",
+      "passed": true,
+      "total_hits": 20,
+      "expected_min": 0,
+      "search_time_ms": 31.946659088134766,
+      "top_results": [
+        {
+          "score": 22.328512,
+          "file_name": "Finance_Contract_Agreement_20250213_0021.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Contract_Agreement_20250213_0021.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "{\r\n  \"document_type\": \"**Contract** **Agreement**\",\r\n  \"department\": \"Finance\",\r\n  \"created_date\": \"2026-02-05T09"
+            ]
+          }
+        },
+        {
+          "score": 21.064026,
+          "file_name": "IT_Contract_Agreement_20250917_0155.docx",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\IT_Contract_Agreement_20250917_0155.docx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "**Contract** **Agreement**\nDate: 2026-02-05\nOverview\nQuality metrics demonstrate consistent improvement across"
+            ]
+          }
+        },
+        {
+          "score": 20.155376,
+          "file_name": "HR_Contract_Agreement_20260104_0244.pdf",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\HR_Contract_Agreement_20260104_0244.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "untitled\n\n\n**Contract** **Agreement**\nDate: 2026-02-05\n\nRisk mitigation strategies have been developed to address"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "basic_agreement",
+      "query": "agreement",
+      "query_type": "keyword",
+      "description": "Search for business term: agreement",
+      "passed": true,
+      "total_hits": 20,
+      "expected_min": 0,
+      "search_time_ms": 27.451276779174805,
+      "top_results": [
+        {
+          "score": 22.328512,
+          "file_name": "Finance_Contract_Agreement_20250213_0021.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Contract_Agreement_20250213_0021.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "{\r\n  \"document_type\": \"**Contract** **Agreement**\",\r\n  \"department\": \"Finance\",\r\n  \"created_date\": \"2026-02-05T09"
+            ]
+          }
+        },
+        {
+          "score": 21.064026,
+          "file_name": "IT_Contract_Agreement_20250917_0155.docx",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\IT_Contract_Agreement_20250917_0155.docx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "**Contract** **Agreement**\nDate: 2026-02-05\nOverview\nQuality metrics demonstrate consistent improvement across"
+            ]
+          }
+        },
+        {
+          "score": 20.155376,
+          "file_name": "HR_Contract_Agreement_20260104_0244.pdf",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\HR_Contract_Agreement_20260104_0244.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "untitled\n\n\n**Contract** **Agreement**\nDate: 2026-02-05\n\nRisk mitigation strategies have been developed to address"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "phrase_loan_agreement",
+      "query": "loan agreement",
+      "query_type": "phrase",
+      "description": "Phrase search for 'loan agreement'",
+      "passed": true,
+      "total_hits": 0,
+      "expected_min": 0,
+      "search_time_ms": 14.474153518676758,
+      "top_results": [],
+      "error": null
+    },
+    {
+      "test_name": "phrase_tax_service",
+      "query": "tax service",
+      "query_type": "phrase",
+      "description": "Phrase search for 'tax service'",
+      "passed": true,
+      "total_hits": 0,
+      "expected_min": 0,
+      "search_time_ms": 22.195816040039062,
+      "top_results": [],
+      "error": null
+    },
+    {
+      "test_name": "fuzzy_agreemnt",
+      "query": "agreemnt",
+      "query_type": "fuzzy",
+      "description": "Fuzzy search with typo: 'agreemnt'",
+      "passed": true,
+      "total_hits": 20,
+      "expected_min": 0,
+      "search_time_ms": 168.22052001953125,
+      "top_results": [
+        {
+          "score": 16.15223,
+          "file_name": "Finance_Contract_Agreement_20250213_0021.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Contract_Agreement_20250213_0021.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        },
+        {
+          "score": 15.897499,
+          "file_name": "scanned_agreement_multipage.pdf",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\scanned_agreement_multipage.pdf",
+          "has_main_content": true,
+          "has_ocr_content": true,
+          "has_embedded_content": false,
+          "ocr_confidence": 73.6398121877601,
+          "highlights": {}
+        },
+        {
+          "score": 14.521671,
+          "file_name": "Legal_Contract_Agreement_20250426_0481.pdf",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Legal_Contract_Agreement_20250426_0481.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "fuzzy_docment",
+      "query": "docment",
+      "query_type": "fuzzy",
+      "description": "Fuzzy search with typo: 'docment'",
+      "passed": true,
+      "total_hits": 314,
+      "expected_min": 0,
+      "search_time_ms": 74.03969764709473,
+      "top_results": [
+        {
+          "score": 2.4516106,
+          "file_name": "HR_Marketing_Strategy_20250802_0271.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\HR_Marketing_Strategy_20250802_0271.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        },
+        {
+          "score": 2.4516106,
+          "file_name": "Sales_Quarterly_Financial_Report_20250724_0375.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Sales_Quarterly_Financial_Report_20250724_0375.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        },
+        {
+          "score": 2.3961518,
+          "file_name": "Finance_Compliance_Documentation_20251022_0354.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Compliance_Documentation_20251022_0354.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {}
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "ocr_zero_vs_o",
+      "query": "2013",
+      "query_type": "keyword",
+      "description": "OCR numeric search: year 2013",
+      "passed": true,
+      "total_hits": 0,
+      "expected_min": 0,
+      "search_time_ms": 11.639118194580078,
+      "top_results": [],
+      "error": null
+    },
+    {
+      "test_name": "partial_title",
+      "query": "TITLE",
+      "query_type": "keyword",
+      "description": "Search for partial term: TITLE",
+      "passed": true,
+      "total_hits": 0,
+      "expected_min": 0,
+      "search_time_ms": 10.27059555053711,
+      "top_results": [],
+      "error": null
+    },
+    {
+      "test_name": "partial_survey",
+      "query": "SURVEY",
+      "query_type": "keyword",
+      "description": "Search for partial term: SURVEY",
+      "passed": true,
+      "total_hits": 24,
+      "expected_min": 0,
+      "search_time_ms": 27.91285514831543,
+      "top_results": [
+        {
+          "score": 15.598573,
+          "file_name": "R&D_Customer_Satisfaction_Survey_20251016_0066.xml",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\R&D_Customer_Satisfaction_Survey_20251016_0066.xml",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Customer Satisfaction **Survey**\n         R"
+            ]
+          }
+        },
+        {
+          "score": 14.502121,
+          "file_name": "Legal_Customer_Satisfaction_Survey_20260202_0049.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Legal_Customer_Satisfaction_Survey_20260202_0049.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Customer Satisfaction **Survey**\n\n\n    Customer Satisfaction **Survey**\n\n    Date: 2026-02-05\n\n    \n        The"
+            ]
+          }
+        },
+        {
+          "score": 14.474455,
+          "file_name": "Customer Service_Customer_Satisfaction_Survey_20250915_0407.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Customer Service_Customer_Satisfaction_Survey_20250915_0407.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "{\r\n  \"document_type\": \"Customer Satisfaction **Survey**\",\r\n  \"department\": \"Customer Service\",\r\n  \"created_date"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_exact_1",
+      "query": "Customer Service_Project_Status_Update_20250713_0043.json",
+      "query_type": "keyword",
+      "description": "Search for exact filename: Customer Service_Project_Status_Update_20250713_00...",
+      "passed": true,
+      "total_hits": 392,
+      "expected_min": 1,
+      "search_time_ms": 123.98338317871094,
+      "top_results": [
+        {
+          "score": 70.72017,
+          "file_name": "Customer Service_Policy_Document_20250415_0038.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Customer Service_Policy_Document_20250415_0038.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**Customer** Service_Policy_Document_20250415_0038.**json**"
+            ],
+            "main_content": [
+              "{\r\n  \"document_type\": \"Policy Document\",\r\n  \"department\": \"**Customer** Service\",\r\n  \"created_date\": \"2026",
+              "\"priority\": \"Medium\",\r\n  \"content\": \"The strategic objectives for this quarter include enhancing **customer**"
+            ]
+          }
+        },
+        {
+          "score": 69.10893,
+          "file_name": "Customer Service_Quarterly_Financial_Report_20251210_0374.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Customer Service_Quarterly_Financial_Report_20251210_0374.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**Customer** Service_Quarterly_Financial_Report_20251210_0374.**json**"
+            ],
+            "main_content": [
+              "{\r\n  \"document_type\": \"Quarterly Financial Report\",\r\n  \"department\": \"**Customer** Service\",\r\n  \"created_date"
+            ]
+          }
+        },
+        {
+          "score": 68.68738,
+          "file_name": "Customer Service_Project_Status_Update_20250713_0043.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Customer Service_Project_Status_Update_20250713_0043.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**Customer** Service_Project_Status_Update_20250713_0043.**json**"
+            ],
+            "main_content": [
+              "{\r\n  \"document_type\": \"Project Status Update\",\r\n  \"department\": \"**Customer** Service\",\r\n  \"created_date\"",
+              "\\n\\nThe strategic objectives for this quarter include enhancing **customer** engagement, streamlining operational"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_partial_1",
+      "query": "Customer",
+      "query_type": "keyword",
+      "description": "Search for keyword from filename: Customer",
+      "passed": true,
+      "total_hits": 381,
+      "expected_min": 1,
+      "search_time_ms": 58.45499038696289,
+      "top_results": [
+        {
+          "score": 40.67797,
+          "file_name": "Customer Service_Contract_Agreement_20251129_0089.pdf",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Customer Service_Contract_Agreement_20251129_0089.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**Customer** Service_Contract_Agreement_20251129_0089.pdf"
+            ],
+            "main_content": [
+              "Contract Agreement\nDate: 2026-02-05\n\nThe strategic objectives for this quarter include enhancing **customer**",
+              "This approach will \nenable us to better serve our **customers** while reducing operational costs."
+            ]
+          }
+        },
+        {
+          "score": 40.67797,
+          "file_name": "Customer Service_User_Manual_20251106_0397.docx",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Customer Service_User_Manual_20251106_0397.docx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**Customer** Service_User_Manual_20251106_0397.docx"
+            ],
+            "main_content": [
+              "User Manual\nDate: 2026-02-05\nOverview\nOur analysis indicates that **customer** satisfaction has improved",
+              "The strategic objectives for this quarter include enhancing **customer** engagement, streamlining operational"
+            ]
+          }
+        },
+        {
+          "score": 40.67797,
+          "file_name": "Customer Service_Incident_Report_20251101_0051.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Customer Service_Incident_Report_20251101_0051.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**Customer** Service_Incident_Report_20251101_0051.html"
+            ],
+            "main_content": [
+              "The strategic objectives for this quarter include enhancing **customer** engagement, streamlining operational"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_exact_2",
+      "query": "Legal_Product_Development_Roadmap_20251201_0141.json",
+      "query_type": "keyword",
+      "description": "Search for exact filename: Legal_Product_Development_Roadmap_20251201_0141.js...",
+      "passed": true,
+      "total_hits": 49,
+      "expected_min": 1,
+      "search_time_ms": 80.30343055725098,
+      "top_results": [
+        {
+          "score": 40.2592,
+          "file_name": "Marketing_Marketing_Strategy_20250413_0383.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Marketing_Strategy_20250413_0383.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Marketing_Marketing_Strategy_20250413_0383.**json**"
+            ]
+          }
+        },
+        {
+          "score": 40.2592,
+          "file_name": "Marketing_Sales_Pipeline_Analysis_20251024_0335.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Sales_Pipeline_Analysis_20251024_0335.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Marketing_Sales_Pipeline_Analysis_20251024_0335.**json**"
+            ]
+          }
+        },
+        {
+          "score": 40.2592,
+          "file_name": "HR_Product_Development_Roadmap_20251104_0125.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\HR_Product_Development_Roadmap_20251104_0125.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "HR_Product_Development_Roadmap_20251104_0125.**json**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_partial_2",
+      "query": "json",
+      "query_type": "keyword",
+      "description": "Search for keyword from filename: json",
+      "passed": true,
+      "total_hits": 49,
+      "expected_min": 1,
+      "search_time_ms": 73.71926307678223,
+      "top_results": [
+        {
+          "score": 40.2592,
+          "file_name": "Marketing_Marketing_Strategy_20250413_0383.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Marketing_Strategy_20250413_0383.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Marketing_Marketing_Strategy_20250413_0383.**json**"
+            ]
+          }
+        },
+        {
+          "score": 40.2592,
+          "file_name": "Marketing_Sales_Pipeline_Analysis_20251024_0335.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Sales_Pipeline_Analysis_20251024_0335.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Marketing_Sales_Pipeline_Analysis_20251024_0335.**json**"
+            ]
+          }
+        },
+        {
+          "score": 40.2592,
+          "file_name": "HR_Product_Development_Roadmap_20251104_0125.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\HR_Product_Development_Roadmap_20251104_0125.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "HR_Product_Development_Roadmap_20251104_0125.**json**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_exact_3",
+      "query": "Marketing_Marketing_Strategy_20251031_0301.csv",
+      "query_type": "keyword",
+      "description": "Search for exact filename: Marketing_Marketing_Strategy_20251031_0301.csv...",
+      "passed": true,
+      "total_hits": 52,
+      "expected_min": 1,
+      "search_time_ms": 90.65842628479004,
+      "top_results": [
+        {
+          "score": 42.558395,
+          "file_name": "HR_Compliance_Documentation_20260110_0087.csv",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\HR_Compliance_Documentation_20260110_0087.csv",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "HR_Compliance_Documentation_20260110_0087.**csv**"
+            ]
+          }
+        },
+        {
+          "score": 42.558395,
+          "file_name": "IT_Policy_Document_20250513_0116.csv",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\IT_Policy_Document_20250513_0116.csv",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "IT_Policy_Document_20250513_0116.**csv**"
+            ]
+          }
+        },
+        {
+          "score": 42.558395,
+          "file_name": "HR_Technical_Specification_20251031_0388.csv",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\HR_Technical_Specification_20251031_0388.csv",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "HR_Technical_Specification_20251031_0388.**csv**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_exact_4",
+      "query": "Marketing_Compliance_Documentation_20250918_0120.html",
+      "query_type": "keyword",
+      "description": "Search for exact filename: Marketing_Compliance_Documentation_20250918_0120.h...",
+      "passed": true,
+      "total_hits": 55,
+      "expected_min": 1,
+      "search_time_ms": 81.31217956542969,
+      "top_results": [
+        {
+          "score": 45.259335,
+          "file_name": "Finance_Technical_Specification_20260120_0178.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Technical_Specification_20260120_0178.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Finance_Technical_Specification_20260120_0178.**html**"
+            ]
+          }
+        },
+        {
+          "score": 45.259335,
+          "file_name": "Marketing_Quality_Assurance_Report_20251123_0410.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Quality_Assurance_Report_20251123_0410.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Marketing_Quality_Assurance_Report_20251123_0410.**html**"
+            ]
+          }
+        },
+        {
+          "score": 45.259335,
+          "file_name": "Operations_Marketing_Strategy_20251217_0428.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Operations_Marketing_Strategy_20251217_0428.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Operations_Marketing_Strategy_20251217_0428.**html**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_partial_4",
+      "query": "html",
+      "query_type": "keyword",
+      "description": "Search for keyword from filename: html",
+      "passed": true,
+      "total_hits": 55,
+      "expected_min": 1,
+      "search_time_ms": 65.2773380279541,
+      "top_results": [
+        {
+          "score": 45.259335,
+          "file_name": "Finance_Technical_Specification_20260120_0178.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Technical_Specification_20260120_0178.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Finance_Technical_Specification_20260120_0178.**html**"
+            ]
+          }
+        },
+        {
+          "score": 45.259335,
+          "file_name": "Marketing_Quality_Assurance_Report_20251123_0410.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Quality_Assurance_Report_20251123_0410.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Marketing_Quality_Assurance_Report_20251123_0410.**html**"
+            ]
+          }
+        },
+        {
+          "score": 45.259335,
+          "file_name": "Operations_Marketing_Strategy_20251217_0428.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Operations_Marketing_Strategy_20251217_0428.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "Operations_Marketing_Strategy_20251217_0428.**html**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "filename_exact_5",
+      "query": "Marketing_Incident_Report_20250907_0462.md",
+      "query_type": "keyword",
+      "description": "Search for exact filename: Marketing_Incident_Report_20250907_0462.md...",
+      "passed": false,
+      "total_hits": 0,
+      "expected_min": 1,
+      "search_time_ms": 38.94639015197754,
+      "top_results": [],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_1_1",
+      "query": "opportunities",
+      "query_type": "keyword",
+      "description": "Search for content keyword: opportunities",
+      "passed": true,
+      "total_hits": 138,
+      "expected_min": 1,
+      "search_time_ms": 49.61419105529785,
+      "top_results": [
+        {
+          "score": 5.689582,
+          "file_name": "IT_Quarterly_Financial_Report_20250209_0172.md",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\IT_Quarterly_Financial_Report_20250209_0172.md",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Our team has identified several **opportunities** for expansion and improvement."
+            ]
+          }
+        },
+        {
+          "score": 5.689582,
+          "file_name": "Operations_User_Manual_20250616_0364.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Operations_User_Manual_20250616_0364.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Our team has identified several **opportunities** for expansion and improvement."
+            ]
+          }
+        },
+        {
+          "score": 5.54845,
+          "file_name": "Sales_Incident_Report_20251128_0124.docx",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Sales_Incident_Report_20251128_0124.docx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Our team has identified several **opportunities** for expansion and improvement."
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_1_2",
+      "query": "approximately",
+      "query_type": "keyword",
+      "description": "Search for content keyword: approximately",
+      "passed": true,
+      "total_hits": 138,
+      "expected_min": 1,
+      "search_time_ms": 45.59659957885742,
+      "top_results": [
+        {
+          "score": 5.689582,
+          "file_name": "IT_Quarterly_Financial_Report_20250209_0172.md",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\IT_Quarterly_Financial_Report_20250209_0172.md",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "The data shows significant growth in the target market segment, with a year-over-year increase of **approximately**"
+            ]
+          }
+        },
+        {
+          "score": 5.689582,
+          "file_name": "Operations_User_Manual_20250616_0364.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Operations_User_Manual_20250616_0364.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "The data shows significant growth in the target market segment, with a year-over-year increase of **approximately**"
+            ]
+          }
+        },
+        {
+          "score": 5.54845,
+          "file_name": "Sales_Incident_Report_20251128_0124.docx",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Sales_Incident_Report_20251128_0124.docx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "The data shows significant growth in the target market segment, with a year-over-year increase of **approximately**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_1_3",
+      "query": "Johnson",
+      "query_type": "keyword",
+      "description": "Search for content keyword: Johnson",
+      "passed": true,
+      "total_hits": 17,
+      "expected_min": 1,
+      "search_time_ms": 36.218881607055664,
+      "top_results": [
+        {
+          "score": 14.48862,
+          "file_name": "Legal_Strategic_Planning_20250908_0395.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Legal_Strategic_Planning_20250908_0395.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Planning\",\r\n  \"department\": \"Legal\",\r\n  \"created_date\": \"2026-02-05T09:43:12.967745\",\r\n  \"author\": \"John **Johnson**"
+            ]
+          }
+        },
+        {
+          "score": 14.48862,
+          "file_name": "Marketing_Quarterly_Financial_Report_20250919_0455.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Quarterly_Financial_Report_20250919_0455.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              ",\r\n  \"department\": \"Marketing\",\r\n  \"created_date\": \"2026-02-05T09:43:13.814983\",\r\n  \"author\": \"Mike **Johnson**"
+            ]
+          }
+        },
+        {
+          "score": 12.858984,
+          "file_name": "Customer Service_Marketing_Strategy_20250724_0127.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Customer Service_Marketing_Strategy_20250724_0127.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "department\": \"Customer Service\",\r\n  \"created_date\": \"2026-02-05T09:43:10.628004\",\r\n  \"author\": \"Sarah **Johnson**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_2_1",
+      "query": "timely",
+      "query_type": "keyword",
+      "description": "Search for content keyword: timely",
+      "passed": true,
+      "total_hits": 215,
+      "expected_min": 1,
+      "search_time_ms": 53.59911918640137,
+      "top_results": [
+        {
+          "score": 5.3776255,
+          "file_name": "Finance_Employee_Performance_Review_20250320_0054.txt",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Employee_Performance_Review_20250320_0054.txt",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Key factors contributing to this improvement include faster response **times**, enhanced product quality,",
+              "Regular reviews will ensure **timely** identification of any issues."
+            ]
+          }
+        },
+        {
+          "score": 5.2208853,
+          "file_name": "Engineering_Sales_Pipeline_Analysis_20251128_0287.pdf",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Engineering_Sales_Pipeline_Analysis_20251128_0287.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Regular reviews will ensure **timely** \nidentification of any issues.",
+              "Key factors contributing \nto this improvement include faster response **times**, enhanced product quality"
+            ]
+          }
+        },
+        {
+          "score": 4.9333067,
+          "file_name": "HR_Budget_Proposal_20250714_0133.pdf",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\HR_Budget_Proposal_20250714_0133.pdf",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Regular reviews will ensure **timely** \nidentification of any issues.",
+              "Key factors contributing \nto this improvement include faster response **times**, enhanced product quality"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_2_2",
+      "query": "mitigation",
+      "query_type": "keyword",
+      "description": "Search for content keyword: mitigation",
+      "passed": true,
+      "total_hits": 132,
+      "expected_min": 1,
+      "search_time_ms": 67.74306297302246,
+      "top_results": [
+        {
+          "score": 7.036082,
+          "file_name": "Legal_Sales_Pipeline_Analysis_20260128_0437.txt",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Legal_Sales_Pipeline_Analysis_20260128_0437.txt",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Sales Pipeline Analysis\r\n\r\nRisk **mitigation** strategies have been developed to address potential challenges"
+            ]
+          }
+        },
+        {
+          "score": 6.775077,
+          "file_name": "Finance_Quarterly_Financial_Report_20251127_0404.docx",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Quarterly_Financial_Report_20251127_0404.docx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": true,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Quarterly Financial Report\nDate: 2026-02-05\nOverview\nRisk **mitigation** strategies have been developed to"
+            ]
+          }
+        },
+        {
+          "score": 6.775077,
+          "file_name": "Finance_Customer_Satisfaction_Survey_20250331_0101.html",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Customer_Satisfaction_Survey_20250331_0101.html",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Risk **mitigation** strategies have been developed to address potential challenges."
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_2_3",
+      "query": "Product",
+      "query_type": "keyword",
+      "description": "Search for content keyword: Product",
+      "passed": true,
+      "total_hits": 193,
+      "expected_min": 1,
+      "search_time_ms": 103.23619842529297,
+      "top_results": [
+        {
+          "score": 7.3806586,
+          "file_name": "Operations_Employee_Performance_Review_20250731_0258.xlsx",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Operations_Employee_Performance_Review_20250731_0258.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Data\n\tID\t**Product**\tCategory\tPrice\tQuantity\tTotal\n\t1\t**Product** 1\tElectronics\t259\t65\t16835\n\t2\t**Product** 2\tFurniture",
+              "57\t66\t3762\n\t3\t**Product** 3\tFurniture\t75\t20\t1500\n\t4\t**Product** 4\tEquipment\t359\t13\t4667\n\t5\t**Product** 5\tSupplies"
+            ]
+          }
+        },
+        {
+          "score": 7.375275,
+          "file_name": "IT_Technical_Specification_20250228_0259.xlsx",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\IT_Technical_Specification_20250228_0259.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Data\n\tID\t**Product**\tCategory\tPrice\tQuantity\tTotal\n\t1\t**Product** 1\tSupplies\t314\t85\t26690\n\t2\t**Product** 2\tSupplies",
+              "295\t17\t5015\n\t3\t**Product** 3\tEquipment\t308\t63\t19404\n\t4\t**Product** 4\tEquipment\t974\t82\t79868\n\t5\t**Product** 5\tEquipment"
+            ]
+          }
+        },
+        {
+          "score": 7.375275,
+          "file_name": "Finance_Customer_Satisfaction_Survey_20250226_0347.xlsx",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Customer_Satisfaction_Survey_20250226_0347.xlsx",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "Data\n\tID\t**Product**\tCategory\tPrice\tQuantity\tTotal\n\t1\t**Product** 1\tSupplies\t526\t43\t22618\n\t2\t**Product** 2\tEquipment",
+              "64\t99\t6336\n\t3\t**Product** 3\tFurniture\t73\t4\t292\n\t4\t**Product** 4\tSupplies\t673\t30\t20190\n\t5\t**Product** 5\tSupplies"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_3_1",
+      "query": "Pending",
+      "query_type": "keyword",
+      "description": "Search for content keyword: Pending",
+      "passed": true,
+      "total_hits": 52,
+      "expected_min": 1,
+      "search_time_ms": 53.05624008178711,
+      "top_results": [
+        {
+          "score": 16.085785,
+          "file_name": "IT_Policy_Document_20250513_0116.csv",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\IT_Policy_Document_20250513_0116.csv",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "-01-27\t$6390\t**Pending**\n\t12\tItem 12\tR&D\t2026-01-10\t$5583\t**Pending**\n\t13\tItem 13\tMarketing\t2026-01-21\t$5374",
+              "Completed\n\t14\tItem 14\tCustomer Service\t2026-01-08\t$2532\t**Pending**\n\t15\tItem 15\tSales\t2026-01-12\t$4376\t**Pending**"
+            ]
+          }
+        },
+        {
+          "score": 15.525139,
+          "file_name": "HR_Compliance_Documentation_20260110_0087.csv",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\HR_Compliance_Documentation_20260110_0087.csv",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "ID\tName\tDepartment\tDate\tAmount\tStatus\n\t1\tItem 1\tMarketing\t2026-02-04\t$7560\t**Pending**\n\t2\tItem 2\tR&D\t2026",
+              "-13\t$943\tApproved\n\t25\tItem 25\tMarketing\t2026-01-15\t$1345\t**Pending**\n\t26\tItem 26\tSales\t2026-01-22\t$1440\t**Pending**"
+            ]
+          }
+        },
+        {
+          "score": 15.359032,
+          "file_name": "Customer Service_Training_Materials_20250411_0057.csv",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Customer Service_Training_Materials_20250411_0057.csv",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "ID\tName\tDepartment\tDate\tAmount\tStatus\n\t1\tItem 1\tMarketing\t2026-01-26\t$9965\t**Pending**\n\t2\tItem 2\tLegal\t2026",
+              "-01-08\t$8723\t**Pending**\n\t10\tItem 10\tHR\t2026-01-07\t$9395\t**Pending**\n\t11\tItem 11\tFinance\t2026-01-11\t$8669\t**Pending**"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_3_2",
+      "query": "Finance",
+      "query_type": "keyword",
+      "description": "Search for content keyword: Finance",
+      "passed": true,
+      "total_hits": 100,
+      "expected_min": 1,
+      "search_time_ms": 61.90204620361328,
+      "top_results": [
+        {
+          "score": 38.975742,
+          "file_name": "Finance_Technical_Specification_20250506_0419.md",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Technical_Specification_20250506_0419.md",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**Finance_Technical_Specification_20250506_0419**.md"
+            ]
+          }
+        },
+        {
+          "score": 38.975742,
+          "file_name": "Finance_Strategic_Planning_20250302_0360.md",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Strategic_Planning_20250302_0360.md",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**Finance_Strategic_Planning_20250302_0360**.md"
+            ]
+          }
+        },
+        {
+          "score": 38.096977,
+          "file_name": "Finance_Incident_Report_20250213_0369.md",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Finance_Incident_Report_20250213_0369.md",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "file_name": [
+              "**Finance_Incident_Report_20250213_0369**.md"
+            ]
+          }
+        }
+      ],
+      "error": null
+    },
+    {
+      "test_name": "content_keyword_3_3",
+      "query": "Department",
+      "query_type": "keyword",
+      "description": "Search for content keyword: Department",
+      "passed": true,
+      "total_hits": 103,
+      "expected_min": 1,
+      "search_time_ms": 55.98258972167969,
+      "top_results": [
+        {
+          "score": 7.277597,
+          "file_name": "Marketing_Sales_Pipeline_Analysis_20251024_0335.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Sales_Pipeline_Analysis_20251024_0335.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "{\r\n  \"document_type\": \"Sales Pipeline Analysis\",\r\n  \"**department**\": \"Marketing\",\r\n  \"created_date\": \"2026"
+            ]
+          }
+        },
+        {
+          "score": 7.277597,
+          "file_name": "Marketing_Training_Materials_20250713_0311.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Marketing_Training_Materials_20250713_0311.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "{\r\n  \"document_type\": \"Training Materials\",\r\n  \"**department**\": \"Marketing\",\r\n  \"created_date\": \"2026-02"
+            ]
+          }
+        },
+        {
+          "score": 7.277597,
+          "file_name": "Legal_Product_Development_Roadmap_20250213_0223.json",
+          "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\Legal_Product_Development_Roadmap_20250213_0223.json",
+          "has_main_content": true,
+          "has_ocr_content": false,
+          "has_embedded_content": false,
+          "ocr_confidence": 0.0,
+          "highlights": {
+            "main_content": [
+              "{\r\n  \"document_type\": \"Product Development Roadmap\",\r\n  \"**department**\": \"Legal\",\r\n  \"created_date\": \"2026"
+            ]
+          }
+        }
+      ],
+      "error": null
+    }
+  ],
+  "timestamp": "2026-05-28T19:39:31.860985"
+}
