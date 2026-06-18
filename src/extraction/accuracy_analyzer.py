@@ -72,6 +72,31 @@ def _empty_metrics(pipeline_type: str = "text_extraction", tier: str = "tier1") 
     }
 
 
+def _normalize_partition_to_100(parts: Dict[str, float]) -> Dict[str, float]:
+    """Ensure the partition percentages sum to exactly 100.0.
+    Adjusts the whitespace/margin percentage to absorb rounding errors.
+    """
+    total = sum(parts.values())
+    if abs(total - 100.0) > 0.001:
+        diff = 100.0 - total
+        ws_keys = [k for k in ["whitespace_pct", "whitespace_margins_pct"] if k in parts]
+        if ws_keys:
+            parts[ws_keys[0]] = max(0.0, parts[ws_keys[0]] + diff)
+    
+    # Round to 2 decimals
+    for k in parts:
+        parts[k] = round(parts[k], 2)
+        
+    # Verify sum again
+    total = sum(parts.values())
+    if abs(total - 100.0) > 0.001:
+        ws_keys = [k for k in ["whitespace_pct", "whitespace_margins_pct"] if k in parts]
+        if ws_keys:
+            parts[ws_keys[0]] = round(parts[ws_keys[0]] + (100.0 - total), 2)
+            
+    return parts
+
+
 # =============================================================================
 # AccuracyAnalyzer
 # =============================================================================
@@ -80,18 +105,31 @@ class AccuracyAnalyzer:
 
     def __init__(self, enable_yolo: bool = True, enable_doctr: bool = True):
         self.tier = "tier1"
-
-        # Tier 2: YOLOv9
         self._yolo = None
-        if enable_yolo and _HAS_YOLO:
-            try:
-                # Use a pre-trained YOLO model for document layout
-                # We'll use yolov8n (nano) for CPU efficiency
-                self._yolo = YOLO("yolov8n.pt")
-                self.tier = "tier2"
-                logger.info("AccuracyAnalyzer: YOLOv8n loaded (Tier 2)")
-            except Exception as exc:
-                logger.warning("AccuracyAnalyzer: YOLO load failed — staying Tier 1: %s", exc)
+        self._yolo_net = None
+
+        # Tier 2: YOLOv8 Layout (ONNX natively via OpenCV DNN or fallback to ultralytics)
+        if enable_yolo:
+            onnx_path = "models/yolov8_layout.onnx"
+            if os.path.exists(onnx_path):
+                try:
+                    self._yolo_net = cv2.dnn.readNetFromONNX(onnx_path)
+                    self._yolo_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+                    self._yolo_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+                    self.tier = "tier2"
+                    logger.info("AccuracyAnalyzer: yolov8_layout.onnx loaded natively via OpenCV DNN (Tier 2)")
+                except Exception as exc:
+                    logger.warning("AccuracyAnalyzer: OpenCV YOLO ONNX load failed: %s", exc)
+
+            if self._yolo_net is None and _HAS_YOLO:
+                try:
+                    # Use a pre-trained YOLO model for document layout
+                    # We'll use yolov8n (nano) for CPU efficiency
+                    self._yolo = YOLO("yolov8n.pt")
+                    self.tier = "tier2"
+                    logger.info("AccuracyAnalyzer: YOLOv8n loaded (Tier 2)")
+                except Exception as exc:
+                    logger.warning("AccuracyAnalyzer: YOLO load failed — staying Tier 1: %s", exc)
 
         # Tier 3: DocTR
         self._doctr = None
@@ -150,12 +188,16 @@ class AccuracyAnalyzer:
         self,
         raw_image_bytes: bytes,
         preprocessed_image_bytes: bytes,
+        smart_id: Optional[str] = None,
+        page_num: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Analyze OCR accuracy for a single page image.
 
         Args:
             raw_image_bytes: Original image before any preprocessing.
             preprocessed_image_bytes: Image after best preprocessing strategy.
+            smart_id: Optional document ID.
+            page_num: Optional page number.
 
         Returns:
             Per-page accuracy metrics dict.
@@ -164,6 +206,12 @@ class AccuracyAnalyzer:
             # Step 1: Zone segmentation
             zone_metrics = self._segment_page_opencv(raw_image_bytes)
             zone_metrics = self._refine_zones_yolo(raw_image_bytes, zone_metrics)
+
+            # Step 1b: Detect faded text bboxes and merge them
+            faded_regions = self._detect_faded_text_regions(raw_image_bytes)
+            if "bboxes" not in zone_metrics:
+                zone_metrics["bboxes"] = []
+            zone_metrics["bboxes"].extend(faded_regions)
 
             # Step 2: Tesseract TSV char-level comparison
             tess_metrics = self._measure_tesseract_coverage(
@@ -186,6 +234,41 @@ class AccuracyAnalyzer:
             loss = self._build_loss_breakdown(
                 zone_metrics, tess_metrics, doctr_metrics, estimated_total
             )
+
+            # Step 6: Write page segmentation breakdown if smart_id/page_num provided
+            if smart_id is not None and page_num is not None:
+                from core.reporting_manager import write_page_segmentation_breakdown
+                from PIL import Image
+                img = Image.open(io.BytesIO(raw_image_bytes))
+                pw, ph = img.width, img.height
+                
+                clean_text_pct = loss["accuracy_loss_breakdown"].get("text_read_pct", 0.0)
+                faded_text_pct = loss["accuracy_loss_breakdown"].get("unreadable_text_pct", 0.0)
+                logo_pct = loss["accuracy_loss_breakdown"].get("logos_images_pct", 0.0)
+                stamp_pct = loss["accuracy_loss_breakdown"].get("stamps_seals_pct", 0.0)
+                handwritten_pct = loss["accuracy_loss_breakdown"].get("handwritten_pct", 0.0)
+                whitespace_pct = loss["accuracy_loss_breakdown"].get("whitespace_margins_pct", 0.0)
+                noise_pct = loss["accuracy_loss_breakdown"].get("noise_artifacts_pct", 0.0)
+                
+                content_area = max(0.1, 100.0 - whitespace_pct)
+                baseline = round((clean_text_pct / content_area) * 100, 2)
+                
+                write_page_segmentation_breakdown(
+                    smart_id=smart_id,
+                    page_num=page_num,
+                    clean_text_pct=clean_text_pct,
+                    faded_text_pct=faded_text_pct,
+                    logo_pct=logo_pct,
+                    stamp_pct=stamp_pct,
+                    handwritten_pct=handwritten_pct,
+                    whitespace_pct=whitespace_pct,
+                    noise_pct=noise_pct,
+                    content_area_pct=content_area,
+                    baseline_accuracy=baseline,
+                    page_width_px=pw,
+                    page_height_px=ph,
+                    analyzer_tier=self.tier,
+                )
 
             return {
                 "pipeline_type": "ocr",
@@ -734,13 +817,48 @@ class AccuracyAnalyzer:
         covered = text_px + image_px + sig_px + stamp_px + noise_px
         ws_px = max(0, total_pixels - covered)
 
+        # Validate whitespace in grid blocks
+        suspect_ws_px = 0
+        grid_w, grid_h = 100, 100
+        covered_mask = np.zeros((h, w), dtype=np.uint8)
+        for b in bboxes:
+            bx1, by1, bx2, by2 = b["bbox"]
+            bx1, bx2 = max(0, min(w, bx1)), max(0, min(w, bx2))
+            by1, by2 = max(0, min(h, by1)), max(0, min(h, by2))
+            covered_mask[by1:by2, bx1:bx2] = 255
+        
+        # Merge text blocks
+        covered_mask = cv2.bitwise_or(covered_mask, text_blocks)
+        
+        for gy in range(0, h, grid_h):
+            for gx in range(0, w, grid_w):
+                gx2 = min(w, gx + grid_w)
+                gy2 = min(h, gy + grid_h)
+                block_area = (gx2 - gx) * (gy2 - gy)
+                if block_area == 0:
+                    continue
+                if np.count_nonzero(covered_mask[gy:gy2, gx:gx2]) == 0:
+                    if not self._validate_whitespace_region(img, (gx, gy, gx2, gy2)):
+                        suspect_ws_px += block_area
+
+        suspect_ws_px = min(suspect_ws_px, ws_px)
+        validated_ws_px = ws_px - suspect_ws_px
+        
+        # Add suspect whitespace to noise
+        noise_px += suspect_ws_px
+
+        validated_ws_pct = round(validated_ws_px / total_pixels * 100, 2)
+        suspect_ws_pct = round(suspect_ws_px / total_pixels * 100, 2)
+
         return {
             "text_area_pct": round(text_px / total_pixels * 100, 2),
             "image_area_pct": round(image_px / total_pixels * 100, 2),
             "signature_area_pct": round(sig_px / total_pixels * 100, 2),
             "stamp_area_pct": round(stamp_px / total_pixels * 100, 2),
             "noise_area_pct": round(noise_px / total_pixels * 100, 2),
-            "whitespace_pct": round(ws_px / total_pixels * 100, 2),
+            "whitespace_pct": validated_ws_pct,
+            "validated_whitespace_pct": validated_ws_pct,
+            "suspect_whitespace_pct": suspect_ws_pct,
             "bboxes": bboxes,
         }
 
@@ -748,10 +866,128 @@ class AccuracyAnalyzer:
         """Refine zone detection using YOLO object detection.
         Falls back to opencv_zones if YOLO is not available.
         """
-        if not self._yolo:
+        if self._yolo_net is None and self._yolo is None:
             return opencv_zones
 
         try:
+            # 1. Use OpenCV DNN ONNX if loaded
+            if self._yolo_net is not None:
+                nparr = np.frombuffer(image_bytes, np.uint8)
+                img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                h, w, _ = img_cv.shape
+                total_pixels = w * h
+
+                # Prepare input blob (640x640)
+                blob = cv2.dnn.blobFromImage(
+                    img_cv, 
+                    scalefactor=1.0/255.0, 
+                    size=(640, 640), 
+                    mean=(0, 0, 0), 
+                    swapRB=True, 
+                    crop=False
+                )
+                self._yolo_net.setInput(blob)
+                outputs = self._yolo_net.forward()  # Shape: (1, 84, 8400) or similar
+                
+                output = outputs[0]
+                num_classes = output.shape[0] - 4
+                num_candidates = output.shape[1]
+                
+                boxes = []
+                confidences = []
+                class_ids = []
+                
+                for col in range(num_candidates):
+                    cx, cy, wb_box, hb_box = output[0:4, col]
+                    classes_scores = output[4:, col]
+                    class_id = np.argmax(classes_scores)
+                    confidence = float(classes_scores[class_id])
+                    
+                    if confidence >= 0.25:
+                        x = int((cx - wb_box / 2.0) * w / 640.0)
+                        y = int((cy - hb_box / 2.0) * h / 640.0)
+                        width = int(wb_box * w / 640.0)
+                        height = int(hb_box * h / 640.0)
+                        
+                        boxes.append([x, y, width, height])
+                        confidences.append(confidence)
+                        class_ids.append(int(class_id))
+                
+                indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.25, nms_threshold=0.45)
+                
+                zones = {
+                    'text_area_pct': 0, 'image_area_pct': 0, 'signature_area_pct': 0,
+                    'stamp_area_pct': 0, 'table_area_pct': 0, 'noise_area_pct': 0,
+                }
+                yolo_bboxes = []
+                
+                if len(indices) > 0:
+                    flat_indices = np.array(indices).flatten()
+                    for idx in flat_indices:
+                        x, y, wb, hb = boxes[idx]
+                        cls_id = class_ids[idx]
+                        area = wb * hb
+                        
+                        x1 = max(0, min(w, x))
+                        y1 = max(0, min(h, y))
+                        x2 = max(0, min(w, x + wb))
+                        y2 = max(0, min(h, y + hb))
+                        
+                        # Custom layout vs standard COCO classes
+                        if num_classes < 10:
+                            s_type = "logo"
+                            if cls_id == 0:
+                                s_type = "signature"
+                            elif cls_id == 1:
+                                s_type = "stamp"
+                            elif cls_id == 2:
+                                s_type = "logo"
+                            elif cls_id == 3:
+                                s_type = "handwritten"
+                            elif cls_id == 4:
+                                s_type = "table"
+                        else:
+                            s_type = "logo"  # Map everything to logo/image for COCO
+                            
+                        if s_type == "signature":
+                            zones['signature_area_pct'] += area
+                        elif s_type == "stamp":
+                            zones['stamp_area_pct'] += area
+                        elif s_type == "logo":
+                            zones['image_area_pct'] += area
+                        elif s_type == "handwritten":
+                            zones['noise_area_pct'] += area
+                        elif s_type == "table":
+                            zones['table_area_pct'] += area
+                            
+                        yolo_bboxes.append({
+                            "type": s_type,
+                            "bbox": [int(x1), int(y1), int(x2), int(y2)],
+                            "impact": round(area / total_pixels * 100, 2)
+                        })
+
+                for key in zones:
+                    zones[key] = round(zones[key] / total_pixels * 100, 2)
+
+                refined = dict(opencv_zones)
+                if "bboxes" not in refined:
+                    refined["bboxes"] = []
+
+                if zones['image_area_pct'] > 0 or zones['signature_area_pct'] > 0 or zones['stamp_area_pct'] > 0:
+                    refined['image_area_pct'] = max(opencv_zones.get('image_area_pct', 0), zones['image_area_pct'])
+                    refined['signature_area_pct'] = max(opencv_zones.get('signature_area_pct', 0), zones['signature_area_pct'])
+                    refined['stamp_area_pct'] = max(opencv_zones.get('stamp_area_pct', 0), zones['stamp_area_pct'])
+                    
+                    for yb in yolo_bboxes:
+                        refined["bboxes"].append(yb)
+                        
+                    total_non_text = refined['image_area_pct'] + refined.get('signature_area_pct', 0) + refined.get('stamp_area_pct', 0) + refined.get('noise_area_pct', 0)
+                    refined['text_area_pct'] = max(0.0, 100.0 - total_non_text - refined.get('whitespace_pct', 0.0))
+
+                refined['detection_method'] = 'opencv+yolo'
+                return refined
+
+            # 2. Fallback to Ultralytics YOLO
             img = Image.open(io.BytesIO(image_bytes))
             w, h = img.size
             total_pixels = w * h
@@ -764,13 +1000,10 @@ class AccuracyAnalyzer:
             }
 
             yolo_bboxes = []
-            # Generic YOLO class mapping (yolov8n trained on COCO)
-            # Map detected objects to document zone types
             for box in results[0].boxes:
                 cls_id = int(box.cls)
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
                 area = (x2 - x1) * (y2 - y1)
-                # Most COCO classes are objects/images in document context
                 zones['image_area_pct'] += area
                 yolo_bboxes.append({
                     "type": "logo",
@@ -778,21 +1011,17 @@ class AccuracyAnalyzer:
                     "impact": round(area / total_pixels * 100, 2)
                 })
 
-            # Convert to percentages
             for key in zones:
                 zones[key] = round(zones[key] / total_pixels * 100, 2)
 
-            # Blend with OpenCV results (YOLO for non-text, OpenCV for text)
             refined = dict(opencv_zones)
             if "bboxes" not in refined:
                 refined["bboxes"] = []
 
             if zones['image_area_pct'] > 0:
                 refined['image_area_pct'] = max(opencv_zones.get('image_area_pct', 0), zones['image_area_pct'])
-                # Append YOLO bboxes
                 for yb in yolo_bboxes:
                     refined["bboxes"].append(yb)
-                # Adjust text proportionally
                 total_non_text = refined['image_area_pct'] + refined.get('signature_area_pct', 0) + refined.get('stamp_area_pct', 0) + refined.get('noise_area_pct', 0)
                 refined['text_area_pct'] = max(0, 100 - total_non_text - refined.get('whitespace_pct', 0))
 
@@ -918,22 +1147,114 @@ class AccuracyAnalyzer:
         noise_pct = zones.get("noise_area_pct", 0)
         ws_pct = zones.get("whitespace_pct", 0)
 
-        total = text_read + text_lost + img_pct + sig_pct + stamp_pct + noise_pct + ws_pct
-        if abs(total - 100.0) > 0.01:
-            ws_pct += 100.0 - total
-            ws_pct = max(0, ws_pct)
+        parts = {
+            "text_read_pct": text_read,
+            "unreadable_text_pct": text_lost,
+            "logos_images_pct": img_pct,
+            "signatures_pct": sig_pct,
+            "stamps_seals_pct": stamp_pct,
+            "noise_artifacts_pct": noise_pct,
+            "whitespace_margins_pct": ws_pct,
+        }
+        parts = _normalize_partition_to_100(parts)
+
+        # Include snippets in the returned dictionary
+        parts_with_snippets = parts.copy()
+        parts_with_snippets["snippets"] = zones.get("bboxes", [])
 
         return {
             "extraction_accuracy": round(read_fraction * 100, 2),
-            "accuracy_loss_breakdown": {
-                "text_read_pct": round(text_read, 2),
-                "unreadable_text_pct": round(text_lost, 2),
-                "logos_images_pct": round(img_pct, 2),
-                "signatures_pct": round(sig_pct, 2),
-                "stamps_seals_pct": round(stamp_pct, 2),
-                "noise_artifacts_pct": round(noise_pct, 2),
-                "whitespace_margins_pct": round(ws_pct, 2),
-                "snippets": zones.get("bboxes", []),
-            },
+            "accuracy_loss_breakdown": parts_with_snippets,
             "total_accounted": 100.0,
         }
+
+    def _validate_whitespace_region(
+        self, image_binary: np.ndarray, region: Tuple[int, int, int, int]
+    ) -> bool:
+        """Verify if region is genuine whitespace (no hidden content)."""
+        x1, y1, x2, y2 = region
+        h, w = image_binary.shape
+        x1 = max(0, min(w, x1))
+        x2 = max(0, min(w, x2))
+        y1 = max(0, min(h, y1))
+        y2 = max(0, min(h, y2))
+        if x1 >= x2 or y1 >= y2:
+            return True
+
+        roi = image_binary[y1:y2, x1:x2]
+        rh, rw = roi.shape
+        patch_size = 32
+
+        for py in range(0, rh, patch_size):
+            for px in range(0, rw, patch_size):
+                patch = roi[py:py+patch_size, px:px+patch_size]
+                if patch.size == 0:
+                    continue
+                # Std deviation of grayscale: < 3.0 = truly blank
+                if np.std(patch.astype(float)) >= 3.0:
+                    return False
+                # Sobel edges: any strong edge = possible faded text
+                sobel = cv2.Sobel(patch, cv2.CV_64F, 1, 0, ksize=3)
+                if np.max(np.abs(sobel)) > 10.0:
+                    return False
+                # If mean intensity is below 240, it is not white
+                if np.mean(patch) < 240:
+                    return False
+        return True
+
+    def _detect_faded_text_regions(self, image_bytes: bytes) -> List[Dict[str, Any]]:
+        """Detect regions where printed text exists but is too faint for Otsu binarization."""
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img_gray = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
+        if img_gray is None:
+            return []
+
+        h, w = img_gray.shape
+        total_px = h * w
+
+        # Pass 1: Otsu
+        otsu_thresh, otsu_mask = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        if otsu_thresh > 180:
+            _, otsu_mask = cv2.threshold(img_gray, 180, 255, cv2.THRESH_BINARY_INV)
+
+        # Pass 2: Adaptive
+        adaptive_mask = cv2.adaptiveThreshold(
+            img_gray, 255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,
+            15, 8
+        )
+
+        # Faded = visible in adaptive but NOT in Otsu
+        faded_only = cv2.bitwise_and(adaptive_mask, cv2.bitwise_not(otsu_mask))
+
+        # Merge letters into line blobs
+        h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (40, 1))
+        line_blobs = cv2.dilate(faded_only, h_kernel, iterations=1)
+        v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 8))
+        line_blobs = cv2.dilate(line_blobs, v_kernel, iterations=1)
+
+        contours, _ = cv2.findContours(line_blobs, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        faded_bboxes = []
+        for cnt in contours:
+            x, y, cw, ch = cv2.boundingRect(cnt)
+            area = cw * ch
+            if area < total_px * 0.0005:
+                continue
+
+            roi_faded = faded_only[y:y+ch, x:x+cw]
+            ink_density = np.count_nonzero(roi_faded) / max(area, 1)
+            if ink_density < 0.003:
+                continue
+
+            impact = round(area / total_px * 100, 3)
+            faded_bboxes.append({
+                "type": "faded_text",
+                "bbox": [int(x), int(y), int(x+cw), int(y+ch)],
+                "impact": impact,
+                "ink_density": round(ink_density, 4),
+                "needs_tesseract_confirm": True,
+            })
+
+        return faded_bboxes
+
