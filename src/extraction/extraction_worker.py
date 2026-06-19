@@ -249,8 +249,8 @@ class ExtractionWorker:
                 )
                 return
             
-            # Deep scan for embedded content (Deep Extraction Strategy) - DISABLED per user request
-            # self._extract_embedded_content(file_path, file_hash)
+            # Deep scan for embedded content (Deep Extraction Strategy) - ENABLED
+            self._extract_embedded_content(file_path, file_hash)
             
             # Mark extraction complete
             processing_time_ms = int((time.time() - start_time) * 1000)
@@ -680,11 +680,9 @@ class ExtractionWorker:
         }
 
     def _extract_embedded_content(self, file_path: str, file_hash: str) -> int:
-        """Deep extraction of embedded files from ANY zip-based file"""
+        """Deep extraction of embedded files from ZIP archives, emails, PDFs, Office docs, etc."""
         extracted_count = 0
-        
-        if not zipfile.is_zipfile(file_path):
-            return 0
+        suffix = Path(file_path).suffix.lower()
 
         # Define extensions we want to extract for further processing
         SEARCHABLE_EXTENSIONS = {
@@ -692,9 +690,9 @@ class ExtractionWorker:
             '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.svg',
             # Documents for Tika
             '.pdf', '.txt', '.html', '.htm', '.xml', '.csv', '.rtf',
-            # Internal office structures (already covered by main tika, but sometimes useful)
+            # Internal office structures
             '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-            # Archives (recursive? no, just extract once)
+            # Archives
             '.zip', '.tar', '.gz'
         }
 
@@ -708,45 +706,137 @@ class ExtractionWorker:
             MAX_TOTAL_SIZE = 1 * 1024 * 1024 * 1024  # 1 GB limit per parent file
             total_extracted_bytes = 0
 
-            with zipfile.ZipFile(file_path, 'r') as zf:
-                for name in zf.namelist():
-                    if name.endswith('/'): continue
-                    
-                    suffix = Path(name).suffix.lower()
-                    if suffix not in SEARCHABLE_EXTENSIONS:
-                        continue
-                    
-                    # Zip Bomb Check 1: Check declared size before extraction
-                    try:
-                        info = zf.getinfo(name)
-                        if info.file_size > 500 * 1024 * 1024:
-                             logger.warning(f"Skipping embedded file {name}: Too large ({info.file_size} bytes)")
-                             continue
+            # 1. Local ZIP Archive Extraction
+            # Exclude Office documents because they are zip packages but we want Tika to extract attachments
+            is_office_doc = suffix in {
+                '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt',
+                '.docm', '.dotx', '.dotm', '.xlsm', '.xltx', '.xltm',
+                '.pptm', '.potx', '.potm'
+            }
+            if zipfile.is_zipfile(file_path) and not is_office_doc:
+                with zipfile.ZipFile(file_path, 'r') as zf:
+                    for name in zf.namelist():
+                        if name.endswith('/'): continue
                         
-                        # Zip Bomb Check 2: Accumulative size
-                        if total_extracted_bytes + info.file_size > MAX_TOTAL_SIZE:
-                            logger.warning(f"Zip extraction stopped for {Path(file_path).name}: Total limit {MAX_TOTAL_SIZE} bytes exceeded")
+                        file_suffix = Path(name).suffix.lower()
+                        if file_suffix not in SEARCHABLE_EXTENSIONS:
+                            continue
+                        
+                        try:
+                            info = zf.getinfo(name)
+                            if info.file_size > 500 * 1024 * 1024:
+                                 logger.warning(f"Skipping embedded file {name}: Too large ({info.file_size} bytes)")
+                                 continue
+                            
+                            if total_extracted_bytes + info.file_size > MAX_TOTAL_SIZE:
+                                logger.warning(f"Zip extraction stopped for {Path(file_path).name}: Total limit {MAX_TOTAL_SIZE} bytes exceeded")
+                                break
+                        except Exception:
+                             pass
+
+                        filename = Path(name).name
+                        if not filename: continue
+                        
+                        # Flatten path for safety
+                        safe_name = name.replace('/', '_').replace('\\', '_')
+                        target_path = embedded_dir / safe_name
+                        
+                        # Copy to disk
+                        with zf.open(name) as source, open(target_path, 'wb') as target:
+                            shutil.copyfileobj(source, target)
+                        
+                        total_extracted_bytes += info.file_size if 'info' in locals() else 0
+
+                        # Inject into pipeline
+                        self._inject_file(target_path, file_hash, file_path)
+                        extracted_count += 1
+
+            # 2. Local EML Email Attachment Extraction
+            elif suffix == '.eml':
+                import email
+                from email import policy
+                with open(file_path, 'rb') as f:
+                    msg = email.message_from_binary_file(f, policy=policy.default)
+                
+                for part in msg.iter_parts():
+                    if part.is_attachment():
+                        name = part.get_filename()
+                        if not name:
+                            continue
+                        
+                        file_suffix = Path(name).suffix.lower()
+                        if file_suffix not in SEARCHABLE_EXTENSIONS:
+                            continue
+                        
+                        filename = Path(name).name
+                        if not filename: continue
+                        
+                        payload = part.get_payload(decode=True)
+                        if not payload:
+                            continue
+
+                        if len(payload) > 500 * 1024 * 1024:
+                            continue
+                        if total_extracted_bytes + len(payload) > MAX_TOTAL_SIZE:
                             break
-                    except Exception:
-                         pass
 
-                    filename = Path(name).name
-                    if not filename: continue
-                    
-                    # Flatten path for safety
-                    safe_name = name.replace('/', '_').replace('\\', '_')
-                    target_path = embedded_dir / safe_name
-                    
-                    # Copy to disk
-                    with zf.open(name) as source, open(target_path, 'wb') as target:
-                        shutil.copyfileobj(source, target)
-                    
-                    total_extracted_bytes += info.file_size
-
-                    # Inject into pipeline
-                    self._inject_file(target_path, file_hash)
-                    extracted_count += 1
+                        safe_name = name.replace('/', '_').replace('\\', '_')
+                        target_path = embedded_dir / safe_name
+                        with open(target_path, 'wb') as target:
+                            target.write(payload)
                         
+                        total_extracted_bytes += len(payload)
+                        self._inject_file(target_path, file_hash, file_path)
+                        extracted_count += 1
+
+            # 3. Generic Tika Unpack fallback for other formats (MSG, PDF, Word, etc.)
+            else:
+                zip_bytes = self.tika_client.unpack(file_path)
+                if zip_bytes:
+                    temp_zip = embedded_dir / f"_tika_unpack_{int(time.time())}.zip"
+                    try:
+                        with open(temp_zip, 'wb') as f:
+                            f.write(zip_bytes)
+                        
+                        if zipfile.is_zipfile(temp_zip):
+                            with zipfile.ZipFile(temp_zip, 'r') as zf:
+                                for name in zf.namelist():
+                                    if name.endswith('/') or name.startswith('__METADATA__'):
+                                        continue
+                                    
+                                    file_suffix = Path(name).suffix.lower()
+                                    if file_suffix not in SEARCHABLE_EXTENSIONS:
+                                        continue
+                                    
+                                    filename = Path(name).name
+                                    if not filename: continue
+
+                                    try:
+                                        info = zf.getinfo(name)
+                                        if info.file_size > 500 * 1024 * 1024:
+                                            continue
+                                        if total_extracted_bytes + info.file_size > MAX_TOTAL_SIZE:
+                                            break
+                                    except Exception:
+                                        pass
+
+                                    # Flatten path for safety
+                                    safe_name = name.replace('/', '_').replace('\\', '_')
+                                    target_path = embedded_dir / safe_name
+                                    
+                                    with zf.open(name) as source, open(target_path, 'wb') as target:
+                                        shutil.copyfileobj(source, target)
+                                    
+                                    total_extracted_bytes += info.file_size if 'info' in locals() else 0
+                                    self._inject_file(target_path, file_hash, file_path)
+                                    extracted_count += 1
+                    finally:
+                        if temp_zip.exists():
+                            try:
+                                temp_zip.unlink()
+                            except Exception:
+                                pass
+                            
             if extracted_count > 0:
                 logger.info(f"Worker {self.worker_id}: Deep-extracted {extracted_count} child files from {Path(file_path).name}")
             return extracted_count
@@ -755,7 +845,7 @@ class ExtractionWorker:
             logger.debug(f"Deep extraction skipped for {file_path}: {e}")
             return 0
 
-    def _inject_file(self, file_path: Path, parent_hash: str) -> None:
+    def _inject_file(self, file_path: Path, parent_hash: str, parent_path: str) -> None:
         """Inject extracted file into pipeline as a new discovered file."""
         try:
             # Calculate hash
@@ -797,13 +887,19 @@ class ExtractionWorker:
 
             # -----------------------------------------------------------------
             # Store parent-child relationship in Redis so the indexing stage
-            # can tag the OpenSearch document with its parent hash.
-            # Key: docsearch:parent_map:<child_hash>  →  <parent_hash>
+            # can tag the OpenSearch document with its parent metadata.
+            # Key: docsearch:parent_map   child_hash → JSON with parent info
             # -----------------------------------------------------------------
             try:
                 r = getattr(self.queue_manager, 'client', None)
                 if r:
-                    r.hset('docsearch:parent_map', file_hash, parent_hash)
+                    import json
+                    parent_meta = {
+                        'parent_hash': parent_hash,
+                        'parent_path': parent_path,
+                        'parent_name': Path(parent_path).name
+                    }
+                    r.hset('docsearch:parent_map', file_hash, json.dumps(parent_meta))
             except Exception:
                 pass  # non-critical; best-effort
 
@@ -818,6 +914,7 @@ class ExtractionWorker:
             
         except Exception as e:
             logger.info(f"Worker {self.worker_id}: Injection failed for {file_path}: {e}")
+
     def _heartbeat_loop(self) -> None:
         """Send heartbeat periodically"""
         while self.running:

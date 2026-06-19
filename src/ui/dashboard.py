@@ -1,4 +1,4 @@
-"""
+r"""
 Streamlit-based monitoring dashboard for the Enterprise Document Search System.
 Displays live queue metrics, completion stats, and failure breakdowns for end users.
 
@@ -213,7 +213,15 @@ def open_file_with_default_app(filepath: str) -> None:
         
         if allowed_roots:
             resolved_str = str(resolved)
-            if not any(resolved_str.startswith(root) for root in allowed_roots):
+            is_windows = os.name == 'nt'
+            if is_windows:
+                resolved_str_cmp = resolved_str.lower()
+                allowed_roots_cmp = [r.lower() for r in allowed_roots]
+            else:
+                resolved_str_cmp = resolved_str
+                allowed_roots_cmp = allowed_roots
+            
+            if not any(resolved_str_cmp.startswith(root) for root in allowed_roots_cmp):
                 raise PermissionError(
                     f"Path '{filepath}' is outside allowed roots"
                 )
@@ -1284,10 +1292,7 @@ def _build_strict_slash_query(
     # Wrap with must_not filter to exclude embedded files from all slash queries
     wrapped_query = {
         "bool": {
-            "must": bool_query,
-            "must_not": [
-                {"term": {"is_embedded": True}}
-            ]
+            "must": bool_query
         }
     }
 
@@ -1363,6 +1368,8 @@ def perform_search(os_client: OpenSearchClient, query: str, limit: int = 20, fil
         "smart_id",
         "is_embedded",
         "parent_file",
+        "parent_path",
+        "parent_name",
         "category",
         "department",
         "purpose",
@@ -1415,10 +1422,7 @@ def perform_search(os_client: OpenSearchClient, query: str, limit: int = 20, fil
                             ],
                             "tie_breaker": 0.1
                         }
-                    },
-                    "must_not": [
-                        {"term": {"is_embedded": True}}
-                    ]
+                    }
                 }
             },
             "highlight": highlight_block,
@@ -1544,10 +1548,7 @@ def perform_search(os_client: OpenSearchClient, query: str, limit: int = 20, fil
                             "score_mode": "sum",
                             "boost_mode": "multiply"
                         }
-                    },
-                    "must_not": [
-                        {"term": {"is_embedded": True}}
-                    ]
+                    }
                 }
             },
             "highlight": highlight_block,
@@ -1620,12 +1621,8 @@ def perform_search(os_client: OpenSearchClient, query: str, limit: int = 20, fil
     for hit in response['hits']['hits']:
         source = hit['_source']
         
-        # --- Skip embedded files (images/media extracted from parent docs) ---
-        # These are indexed separately but should not appear as independent
-        # search results. Their content is already in the parent's
-        # embedded_content field.
-        if source.get('is_embedded', False):
-            continue
+        # Keep embedded files (zips/attachments/nested content) as search results.
+        # Lineage details are displayed below the filename in the UI.
         
         result = {
             'id': hit['_id'],
@@ -1647,7 +1644,11 @@ def perform_search(os_client: OpenSearchClient, query: str, limit: int = 20, fil
             'main_content': source.get('main_content', ''),
             'embedded_content': source.get('embedded_content', ''),
             'ocr_content': source.get('ocr_content', ''),
-            'reviewed_content': source.get('reviewed_content', '')
+            'reviewed_content': source.get('reviewed_content', ''),
+            'is_embedded': source.get('is_embedded', False),
+            'parent_file': source.get('parent_file', ''),
+            'parent_path': source.get('parent_path', ''),
+            'parent_name': source.get('parent_name', '')
         }
         
         # Extract snippet from highlights or manually
@@ -1846,8 +1847,17 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
             col1, col2 = st.columns([5, 1])
             
             with col1:
-                # Show filename (OCR badge removed as per user request)
+                # Show filename
                 st.markdown(f'<div class="doc-filename">{_esc(result["filename"])}</div>', unsafe_allow_html=True)
+                
+                # Show parent-child lineage if embedded
+                if result.get('is_embedded'):
+                    st.markdown(
+                        f'<div style="color: #4B5563; font-size: 0.88rem; font-weight: 500; margin-top: 0.15rem; margin-bottom: 0.4rem;">'
+                        f'📁 Parent: <span style="color: #1E40AF; font-weight: 600;">{_esc(result.get("parent_name"))}</span>'
+                        f' <span style="color: #6B7280; font-size: 0.78rem;">({_esc(result.get("parent_path"))})</span></div>',
+                        unsafe_allow_html=True
+                    )
                 
                 # Metadata
                 file_size_mb = result.get('file_size', 0) / (1024 * 1024)
@@ -1951,15 +1961,15 @@ def render_recent_documents(os_client: OpenSearchClient, limit: int = 15) -> Non
         query = {
             "query": {
                 "bool": {
-                    "must": {"match_all": {}},
-                    "must_not": [{"term": {"is_embedded": True}}]
+                    "must": {"match_all": {}}
                 }
             },
             "sort": [{"indexed_at": {"order": "desc"}}],
             "size": limit,
             "_source": [
                 "file_name", "file_path", "file_size", "mime_type", "indexed_at",
-                "main_content", "embedded_content", "ocr_content", "reviewed_content", "ocr_confidence"
+                "main_content", "embedded_content", "ocr_content", "reviewed_content", "ocr_confidence",
+                "parent_name", "parent_path", "parent_file", "is_embedded"
             ]
         }
         
@@ -1982,7 +1992,11 @@ def render_recent_documents(os_client: OpenSearchClient, limit: int = 15) -> Non
                 'embedded_content': source.get('embedded_content', ''),
                 'ocr_content': source.get('ocr_content', ''),
                 'reviewed_content': source.get('reviewed_content', ''),
-                'ocr_confidence': source.get('ocr_confidence')
+                'ocr_confidence': source.get('ocr_confidence'),
+                'is_embedded': source.get('is_embedded', False),
+                'parent_file': source.get('parent_file', ''),
+                'parent_path': source.get('parent_path', ''),
+                'parent_name': source.get('parent_name', '')
             })
         
         if not docs:
@@ -1999,6 +2013,14 @@ def render_recent_documents(os_client: OpenSearchClient, limit: int = 15) -> Non
                 
                 with col1:
                     st.markdown(f'<div class="doc-filename">{_esc(doc["filename"])}</div>', unsafe_allow_html=True)
+                    # Show parent-child lineage if embedded
+                    if doc.get('is_embedded'):
+                        st.markdown(
+                            f'<div style="color: #4B5563; font-size: 0.82rem; font-weight: 500; margin-top: 0.1rem; margin-bottom: 0.3rem;">'
+                            f'📁 Parent: <span style="color: #1E40AF; font-weight: 600;">{_esc(doc.get("parent_name"))}</span>'
+                            f' <span style="color: #6B7280; font-size: 0.75rem;">({_esc(doc.get("parent_path"))})</span></div>',
+                            unsafe_allow_html=True
+                        )
                     file_size_mb = doc.get('file_size', 0) / (1024 * 1024)
                     meta_text = f"Path: {_esc(doc['filepath'])}"
                     if file_size_mb > 0:

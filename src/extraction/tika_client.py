@@ -61,6 +61,49 @@ class TikaClient:
         
         return session
     
+    def unpack(self, file_path: str) -> Optional[bytes]:
+        """
+        Unpack embedded files from file using Tika's /unpack/all endpoint
+        
+        Args:
+            file_path: Path to file to unpack
+            
+        Returns:
+            ZIP archive bytes containing all embedded files or None on failure
+        """
+        url = f"{self.base_url}/unpack/all"
+        attempt = 0
+        last_error = None
+        
+        while attempt <= self.max_retries:
+            try:
+                with open(file_path, 'rb') as f:
+                    response = self.session.put(
+                        url,
+                        data=f,
+                        headers={
+                            'Accept': 'application/zip',
+                            'Content-Type': 'application/octet-stream'
+                        },
+                        timeout=self.timeout
+                    )
+                if response.status_code == 200:
+                    return response.content
+                elif response.status_code == 204:
+                    return None  # No embedded files
+                else:
+                    last_error = f"HTTP {response.status_code}"
+            except Exception as e:
+                last_error = str(e)
+            
+            attempt += 1
+            if attempt <= self.max_retries:
+                wait_time = self.retry_backoff[attempt - 1] if (attempt - 1) < len(self.retry_backoff) else self.retry_backoff[-1]
+                time.sleep(wait_time)
+        
+        logger.warning(f"Failed to unpack {file_path} via Tika: {last_error}")
+        return None
+
     def extract(self, file_path: str) -> Optional[Dict[str, Any]]:
         """
         Extract content from file using Tika

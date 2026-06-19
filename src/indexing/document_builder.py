@@ -54,18 +54,27 @@ class DocumentBuilder:
                 return None
         return self._redis
 
-    def _lookup_parent_hash(self, child_hash: str) -> str:
-        """Look up the parent document hash for an embedded (child) file"""
+    def _lookup_parent_metadata(self, child_hash: str) -> Optional[Dict[str, str]]:
+        """Look up parent metadata (hash, path, name) for an embedded (child) file"""
         if not child_hash:
-            return ''
+            return None
         try:
             r = self._get_redis()
             if r:
                 val = r.hget('docsearch:parent_map', child_hash)
-                return val or ''
+                if val:
+                    try:
+                        import json
+                        return json.loads(val)
+                    except Exception:
+                        return {
+                            'parent_hash': val,
+                            'parent_path': '',
+                            'parent_name': ''
+                        }
         except Exception:
             pass
-        return ''
+        return None
     
     def _truncate_content(self, content: str, max_chars: int, field_name: str = "") -> Tuple[str, bool, int]:
         """Truncate content to max characters, preserving word boundaries.
@@ -219,16 +228,20 @@ class DocumentBuilder:
             # Parent-child tagging: if this file was deep-extracted from a
             # parent Office document, tag it so the UI can show the lineage.
             # The extraction worker stores the mapping in Redis:
-            #   docsearch:parent_map   <child_hash> → <parent_hash>
+            #   docsearch:parent_map   <child_hash> → <parent_meta_json>
             # Uses the existing 'parent_file' keyword field in the mapping.
             # -----------------------------------------------------------------
             file_hash = extracted.get('file_hash', '')
-            parent_hash = self._lookup_parent_hash(file_hash)
-            if parent_hash:
-                document['parent_file'] = parent_hash
+            parent_meta = self._lookup_parent_metadata(file_hash)
+            if parent_meta:
+                document['parent_file'] = parent_meta.get('parent_hash', '')
+                document['parent_path'] = parent_meta.get('parent_path', '')
+                document['parent_name'] = parent_meta.get('parent_name', '')
                 document['is_embedded'] = True
             else:
                 document['parent_file'] = ''
+                document['parent_path'] = ''
+                document['parent_name'] = ''
                 document['is_embedded'] = False
             
             # Add file size if available

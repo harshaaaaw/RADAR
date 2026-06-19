@@ -263,6 +263,8 @@ class OpenSearchClient:
                             'is_duplicate': {'type': 'boolean'},
                             'duplicate_of': {'type': 'keyword'},
                             'parent_file': {'type': 'keyword'},
+                            'parent_path': {'type': 'keyword'},
+                            'parent_name': {'type': 'keyword'},
                             'smart_id': {
                                 'type': 'keyword',
                                 'fields': {
@@ -382,6 +384,8 @@ class OpenSearchClient:
                         "tag_confidence_by_field": {"type": "object", "enabled": True},
                         "extended_metadata": {"type": "object", "enabled": True},
                         "file_type": {"type": "keyword"},
+                        "parent_path": {"type": "keyword"},
+                        "parent_name": {"type": "keyword"},
                         # Searchable field written on snippet acceptance —
                         # stores the reviewer-typed label (e.g. "Scott A. Reich signature").
                         "reviewed_content": {
