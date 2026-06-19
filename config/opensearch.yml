@@ -21,8 +21,8 @@ discovery.type: single-node
 bootstrap.memory_lock: false
 
 # Paths - Windows
-path.data: ["c:\\Users\\DELL\\Music\\DocumentSearch\\runtime\\opensearch\\data"]
-path.logs: "c:\\Users\\DELL\\Music\\DocumentSearch\\runtime\\opensearch\\logs"
+path.data: ["c:\\Users\\DELL\\Documents\\GitHub\\AI_PaddleOCR\\RADAR\\runtime\\opensearch\\data"]
+path.logs: "c:\\Users\\DELL\\Documents\\GitHub\\AI_PaddleOCR\\RADAR\\runtime\\opensearch\\logs"
 
 # Thread Pools (default values let OpenSearch auto-size safely based on CPU cores)
 # thread_pool:

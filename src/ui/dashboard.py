@@ -230,11 +230,11 @@ def open_file_with_default_app(filepath: str) -> None:
 
     try:
         if os.name == 'nt':  # Windows
-            os.startfile(filepath)
+            os.startfile(str(resolved))
         elif sys.platform == 'darwin':  # macOS
-            subprocess.run(['open', filepath], check=True)
+            subprocess.run(['open', str(resolved)], check=True)
         elif os.name == 'posix':  # Linux
-            subprocess.run(['xdg-open', filepath], check=True)
+            subprocess.run(['xdg-open', str(resolved)], check=True)
         else:
             raise RuntimeError(f"Unsupported platform: {os.name}")
     except Exception as e:
@@ -915,18 +915,29 @@ def extract_snippet_manually(text: str, query: str, max_length: int = 180) -> st
         return ""
     
     # Normalize for searching
-    text_lower = text.lower()
     query_lower = query.lower()
     query_terms = query_lower.split()
     
     # Find first occurrence of any query term
     best_pos = -1
-    best_term = ""
     for term in query_terms:
-        pos = text_lower.find(term)
-        if pos != -1 and (best_pos == -1 or pos < best_pos):
-            best_pos = pos
-            best_term = term
+        if not term:
+            continue
+        # Strip internal commas for digits
+        normalized_term = re.sub(r'(?<=\d),(?=\d)', '', term)
+        if normalized_term.isdigit():
+            pattern = re.compile(r'(?<!\d)' + r',?'.join(list(normalized_term)) + r'(?!\d)', re.IGNORECASE)
+        else:
+            escaped = re.escape(term)
+            start_boundary = r'\b' if term[0].isalnum() else ''
+            end_boundary = r'\b' if term[-1].isalnum() else ''
+            pattern = re.compile(start_boundary + escaped + end_boundary, re.IGNORECASE)
+            
+        match = pattern.search(text)
+        if match:
+            pos = match.start()
+            if pos != -1 and (best_pos == -1 or pos < best_pos):
+                best_pos = pos
     
     if best_pos == -1:
         # No match found, return beginning
@@ -944,10 +955,17 @@ def extract_snippet_manually(text: str, query: str, max_length: int = 180) -> st
         snippet = snippet + "..."
     
     # Highlight matching terms
-
     for term in query_terms:
         if len(term) >= 3:  # Only highlight meaningful terms
-            pattern = re.compile(re.escape(term), re.IGNORECASE)
+            normalized_term = re.sub(r'(?<=\d),(?=\d)', '', term)
+            if normalized_term.isdigit():
+                pattern = re.compile(r'(?<!\d)' + r',?'.join(list(normalized_term)) + r'(?!\d)', re.IGNORECASE)
+            else:
+                escaped = re.escape(term)
+                start_boundary = r'\b' if term[0].isalnum() else ''
+                end_boundary = r'\b' if term[-1].isalnum() else ''
+                pattern = re.compile(start_boundary + escaped + end_boundary, re.IGNORECASE)
+                
             snippet = pattern.sub(lambda m: f"**{m.group()}**", snippet)
     
     return snippet
@@ -1483,23 +1501,25 @@ def perform_search(os_client: OpenSearchClient, query: str, limit: int = 20, fil
                         "minimum_should_match": "75%",
                         "boost": 20
                     }
-                },
-                
-                # --- TIER 5: Fuzzy Matching for Typos (10 boost) ---
-                {
-                    "multi_match": {
-                        "query": normalized_query,
-                        "fields": content_fields,
-                        "type": "best_fields",
-                        "fuzziness": "AUTO",
-                        "prefix_length": 3,
-                        "max_expansions": 30,
-                        "boost": 10
-                    }
                 }
             ],
             "minimum_should_match": 1
         }
+        
+        # --- TIER 5: Fuzzy Matching for Typos (10 boost) - Skip for numeric terms ---
+        fuzzy_terms = [t for t in normalized_query.split() if not re.sub(r'(?<=\d),(?=\d)', '', t).isdigit()]
+        if fuzzy_terms:
+            bool_clauses["should"].append({
+                "multi_match": {
+                    "query": " ".join(fuzzy_terms),
+                    "fields": content_fields,
+                    "type": "best_fields",
+                    "fuzziness": "AUTO",
+                    "prefix_length": 3,
+                    "max_expansions": 30,
+                    "boost": 10
+                }
+            })
         
         # Add OCR variant searches for common OCR misreads
         for variant in ocr_variants:

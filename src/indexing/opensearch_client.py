@@ -132,6 +132,13 @@ class OpenSearchClient:
                         'refresh_interval': self.os_config.bulk_refresh_interval,
                         # Custom analyzers for improved search accuracy
                         'analysis': {
+                            'char_filter': {
+                                'comma_stripper': {
+                                    'type': 'pattern_replace',
+                                    'pattern': r'(?<=\d),(?=\d)',
+                                    'replacement': ''
+                                }
+                            },
                             'filter': {
                                 # Edge n-gram for partial word matching (typo tolerance)
                                 'edge_ngram_filter': {
@@ -170,6 +177,7 @@ class OpenSearchClient:
                                 # Enhanced English analyzer with synonyms
                                 'english_enhanced': {
                                     'type': 'custom',
+                                    'char_filter': ['comma_stripper'],
                                     'tokenizer': 'standard',
                                     'filter': [
                                         'lowercase',
@@ -183,6 +191,7 @@ class OpenSearchClient:
                                 # OCR-specific analyzer — matches english_enhanced for consistent search
                                 'ocr_analyzer': {
                                     'type': 'custom',
+                                    'char_filter': ['comma_stripper'],
                                     'tokenizer': 'standard',
                                     'filter': [
                                         'lowercase',
@@ -195,6 +204,7 @@ class OpenSearchClient:
                                 # Autocomplete analyzer with edge n-grams
                                 'autocomplete': {
                                     'type': 'custom',
+                                    'char_filter': ['comma_stripper'],
                                     'tokenizer': 'standard',
                                     'filter': [
                                         'lowercase',
@@ -204,6 +214,7 @@ class OpenSearchClient:
                                 # Search analyzer (no edge n-gram, for queries)
                                 'autocomplete_search': {
                                     'type': 'custom',
+                                    'char_filter': ['comma_stripper'],
                                     'tokenizer': 'standard',
                                     'filter': ['lowercase']
                                 }

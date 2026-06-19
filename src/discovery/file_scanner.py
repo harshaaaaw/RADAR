@@ -106,6 +106,10 @@ class FileScanner:
         path_str = entry.path
         name = entry.name
         
+        # Exclude temporary MS Office lock files
+        if name.startswith("~$"):
+            return True
+            
         for pattern in self.exclude_patterns:
             if fnmatch(name, pattern) or fnmatch(path_str, pattern):
                 return True

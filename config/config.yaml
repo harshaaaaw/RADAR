@@ -60,7 +60,7 @@ paths:
   checkpoints_dir: "{app_root}\\runtime\\checkpoints"
   metrics_dir: "{app_root}\\runtime\\metrics"
   backup_dir: "{app_root}\\runtime\\backup"
-  app_root: "c:\\Users\\DELL\\Music\\DocumentSearch"
+  app_root: "c:\\Users\\DELL\\Documents\\GitHub\\AI_PaddleOCR\\RADAR"
 
 
 

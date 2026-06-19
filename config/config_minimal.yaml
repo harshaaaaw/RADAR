@@ -22,7 +22,7 @@ nlp:
 # SYSTEM PATHS
 # ============================================================================
 paths:
-  app_root: "c:\\Users\\DELL\\Music\\DocumentSearch"
+  app_root: "c:\\Users\\DELL\\Documents\\GitHub\\AI_PaddleOCR\\RADAR"
   source_drive: "{app_root}\\test_data"
   working_root: "{app_root}\\runtime"
   queue_db: "{app_root}\\runtime\\queue"
