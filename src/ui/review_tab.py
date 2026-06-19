@@ -11,6 +11,8 @@ It provides:
   6. Storage management for snippet crop files
 """
 import json
+import mimetypes
+mimetypes.add_type('application/pdf', '.pdf')
 import os
 import re
 import sqlite3
@@ -208,68 +210,295 @@ def _build_document_page_link(file_path: str, page_num: int) -> Optional[str]:
         return None
 
 
-def _render_accuracy_waterfall_chart(snippets: List[Dict[str, Any]], selected_doc: Dict[str, Any]) -> None:
-    """Render accuracy waterfall chart.
-
-    Layout order:
-      1. Current Accuracy (green, solid) — first bar
-      2. Category error bars (signatures, stamps, etc.) — stacked starting from
-         current accuracy upward toward 100%
-      3. Total Accuracy (blue, dotted outline, light fill) — last bar
+def _prepare_static_document(resolved_path: str) -> Optional[str]:
+    """Copy resolved document path to Streamlit's static directory so it can be opened via browser URL.
+    
+    Returns the relative URL path to be opened by the browser.
     """
-    pending = [s for s in snippets if s.get("status") == "pending"]
-    category_meta = {
-        "stamp": ("Stamp", "#F59E0B"),
-        "signature": ("Signature", "#EF4444"),
-        "logo": ("Logo/Image", "#8B5CF6"),
-        "text_anomaly": ("Text", "#14B8A6"),
+    if not resolved_path:
+        return None
+    try:
+        p = Path(resolved_path)
+        if not p.exists():
+            return None
+        static_dir = Path(__file__).parent / "static"
+        static_dir.mkdir(exist_ok=True)
+        dest = static_dir / p.name
+        # Copy file if it doesn't exist or is outdated
+        if not dest.exists() or dest.stat().st_mtime < p.stat().st_mtime:
+            import shutil
+            shutil.copy(resolved_path, dest)
+            print(f"[DEBUG] Copied {resolved_path} to static/ directory.")
+        # Return the Streamlit static URL (relative)
+        return f"/app/static/{p.name}"
+    except Exception as e:
+        print(f"[DEBUG] Error preparing static document: {e}")
+        return None
+
+
+def _open_source_document(file_path: Any, page_num: Any) -> None:
+    """Open file with system default application to specific page."""
+    import logging
+    logger = logging.getLogger("review_tab")
+    
+    page_num_int = int(page_num or 1)
+    file_path_str = str(file_path) if file_path else ""
+    
+    msg = f"Request to open document: file_path='{file_path_str}', page_num={page_num_int}"
+    print(f"[DEBUG] {msg}")
+    logger.info(msg)
+    st.toast(f"Opening Page {page_num_int}...")
+    
+    if not file_path_str:
+        st.error("Cannot open document: No file path provided.")
+        return
+        
+    resolved_path = _resolve_document_path(file_path_str)
+    if not resolved_path or not os.path.exists(resolved_path):
+        err_msg = f"Resolved file path does not exist on disk: '{resolved_path}'"
+        print(f"[DEBUG] {err_msg}")
+        logger.error(err_msg)
+        st.error(f"Cannot open document: File not found on host disk. Resolved path: '{resolved_path}'")
+        return
+        
+    uri = _build_document_page_link(resolved_path, page_num_int)
+    print(f"[DEBUG] Resolved path: {resolved_path}, URI: {uri}")
+    
+    try:
+        if os.name == 'nt':  # Windows
+            # os.startfile silently fails when Streamlit runs in a non-interactive session.
+            # Use a temporary Scheduled Task to launch the file in the user's interactive desktop.
+            import tempfile
+            import time
+
+            temp_dir = tempfile.gettempdir()
+            ts = int(time.time() * 1000)
+            bat_name = f"open_pdf_{ts}.bat"
+            bat_path = os.path.join(temp_dir, bat_name)
+            task_name = f"OpenPDFTask_{ts}"
+
+            # Always open the resolved local file path with the default app.
+            # Windows PDF readers jump to the correct page when opened; we pass the
+            # raw file path so it opens in the native desktop application, not a browser.
+            with open(bat_path, "w") as _bf:
+                _bf.write("@echo off\n")
+                _bf.write(f'start "" "{resolved_path}"\n')
+
+            print(f"[DEBUG] Created temporary batch file: {bat_path}")
+
+            try:
+                # 1. Create scheduled task
+                subprocess.run(
+                    ["schtasks", "/create", "/tn", task_name, "/tr",
+                     f'"{bat_path}"', "/sc", "once", "/st", "12:00", "/f"],
+                    capture_output=True, text=True, check=True
+                )
+                print(f"[DEBUG] Created task: {task_name}")
+
+                # 2. Run task immediately
+                subprocess.run(
+                    ["schtasks", "/run", "/tn", task_name],
+                    capture_output=True, text=True, check=True
+                )
+                print(f"[DEBUG] Executed task: {task_name}")
+
+                time.sleep(0.5)
+            except Exception as task_err:
+                print(f"[DEBUG] Scheduled task execution failed: {task_err}")
+                try:
+                    subprocess.run(["schtasks", "/delete", "/tn", task_name, "/f"], capture_output=True)
+                except Exception:
+                    pass
+            else:
+                # 3. Cleanup task only if creation+run succeeded
+                try:
+                    subprocess.run(
+                        ["schtasks", "/delete", "/tn", task_name, "/f"],
+                        capture_output=True, text=True
+                    )
+                    print(f"[DEBUG] Deleted task: {task_name}")
+                except Exception:
+                    pass
+            finally:
+                try:
+                    if os.path.exists(bat_path):
+                        os.remove(bat_path)
+                        print(f"[DEBUG] Cleaned up batch file: {bat_path}")
+                except Exception:
+                    pass
+        else:
+            # macOS / Linux
+            import webbrowser
+            if uri:
+                try:
+                    print(f"[DEBUG] Attempting launch via webbrowser.open: {uri}")
+                    if webbrowser.open(uri):
+                        print("[DEBUG] webbrowser.open succeeded.")
+                        return
+                except Exception as e:
+                    print(f"[DEBUG] webbrowser.open exception: {e}")
+                    
+            try:
+                system_name = os.uname().sysname
+            except Exception:
+                system_name = ""
+                
+            if system_name == 'Darwin':  # macOS
+                file_uri = Path(resolved_path).resolve().as_uri()
+                if page_num_int > 1:
+                    file_uri += f'#page={page_num_int}'
+                print(f"[DEBUG] Attempting launch via mac open: {file_uri}")
+                subprocess.run(['open', file_uri], check=True)
+                return
+            else:  # Linux
+                file_uri = Path(resolved_path).resolve().as_uri()
+                if page_num_int > 1:
+                    file_uri += f'#page={page_num_int}'
+                print(f"[DEBUG] Attempting launch via xdg-open: {file_uri}")
+                subprocess.run(['xdg-open', file_uri], check=True)
+                return
+    except Exception as e:
+        print(f"[DEBUG] Failure during document open process: {e}")
+        logger.exception("Failed to open source document")
+        st.error(f"Failed to open file: {e}")
+
+
+
+def _render_accuracy_waterfall_chart(snippets: List[Dict[str, Any]], selected_doc: Dict[str, Any]) -> None:
+    """Render accuracy waterfall chart showing true page composition corrected by reviews."""
+    smart_id = selected_doc.get("smart_id")
+    breakdown = get_page_segmentation_breakdown(smart_id)
+    
+    # Calculate average page composition percentages from database
+    avg_clean = 0.0
+    avg_whitespace = 0.0
+    avg_faded = 0.0
+    avg_logo = 0.0
+    avg_stamp = 0.0
+    avg_handwritten = 0.0
+    avg_noise = 0.0
+    
+    if breakdown:
+        num_pages = len(breakdown)
+        avg_clean = sum(float(p.get("clean_text_pct") or 0.0) for p in breakdown) / num_pages
+        avg_whitespace = sum(float(p.get("whitespace_pct") or 0.0) for p in breakdown) / num_pages
+        avg_faded = sum(float(p.get("faded_text_pct") or 0.0) for p in breakdown) / num_pages
+        avg_logo = sum(float(p.get("logo_pct") or 0.0) for p in breakdown) / num_pages
+        avg_stamp = sum(float(p.get("stamp_pct") or 0.0) for p in breakdown) / num_pages
+        avg_handwritten = sum(float(p.get("handwritten_pct") or 0.0) for p in breakdown) / num_pages
+        avg_noise = sum(float(p.get("noise_pct") or 0.0) for p in breakdown) / num_pages
+    else:
+        # Fallback to general baseline if database records are empty
+        baseline_acc = float(selected_doc.get("extraction_accuracy") or 0.0)
+        avg_clean = max(1.0, baseline_acc)
+        avg_whitespace = max(1.0, 100.0 - avg_clean)
+        
+    # Calculate counts and impact sums dynamically from snippets (all reviews for the doc)
+    pending_counts = {}
+    pending_impacts = {}
+    accepted_impact_total = 0.0
+    doc_snippet_types = set()
+    
+    for s in snippets:
+        t = str(s.get("snippet_type") or "").strip().lower()
+        doc_snippet_types.add(t)
+        status = s.get("status", "pending")
+        impact = max(0.0, float(s.get("accuracy_impact") or 0.0))
+        
+        if status == "pending":
+            pending_counts[t] = pending_counts.get(t, 0) + 1
+            pending_impacts[t] = pending_impacts.get(t, 0.0) + impact
+        elif status == "accepted":
+            accepted_impact_total += impact
+
+    # Mapping display configuration for segments
+    segment_cfg = {
+        "clean": {"label": "Extractable Text", "value": avg_clean, "color": "#10B981"},
+        "whitespace": {"label": "Whitespace", "value": avg_whitespace, "color": "#F1F5F9", "border": "#CBD5E1"},
+        "faded": {"label": "Faded Text", "value": avg_faded, "color": "#3B82F6", "snippet_key": "faded_text"},
+        "logo": {"label": "Logo/Image", "value": avg_logo, "color": "#8B5CF6", "snippet_key": "logo"},
+        "stamp": {"label": "Stamp", "value": avg_stamp, "color": "#F59E0B", "snippet_key": "stamp"},
+        "handwritten": {
+            "label": "Handwritten",
+            "value": avg_handwritten,
+            "color": "#EC4899",
+            "snippet_key": "handwritten",
+            "extra_snippet_key": "signature"
+        },
+        "noise": {"label": "Noise", "value": avg_noise, "color": "#64748B", "snippet_key": "text_anomaly"}, 
     }
 
-    by_type: Dict[str, Dict[str, float]] = {}
-    for s in pending:
-        t = str(s.get("snippet_type") or "other")
-        impact = max(0.0, float(s.get("accuracy_impact") or 0.0))
-        by_type.setdefault(t, {"impact": 0.0, "count": 0.0})
-        by_type[t]["impact"] += impact
-        by_type[t]["count"] += 1
+    # Add verified (accepted) snippet impacts to the baseline Extractable Text bar
+    segment_cfg["clean"]["value"] += accepted_impact_total
 
-    raw_fault_total = sum(v["impact"] for v in by_type.values())
-    fault_total = min(100.0, raw_fault_total)
-    current_accuracy = max(0.0, 100.0 - fault_total)
+    # For categories present as snippets in the document, use their pending snippet impact sum.
+    # For categories not in the snippet queue, keep the database composition averages.
+    for key, cfg in segment_cfg.items():
+        if key == "clean" or key == "whitespace":
+            continue
+            
+        has_snippets = False
+        if "snippet_key" in cfg and cfg["snippet_key"] in doc_snippet_types:
+            has_snippets = True
+        if "extra_snippet_key" in cfg and cfg["extra_snippet_key"] in doc_snippet_types:
+            has_snippets = True
+            
+        if has_snippets:
+            # Value is exactly the sum of impacts of remaining pending elements in this category
+            snippet_pending_sum = 0.0
+            if "snippet_key" in cfg:
+                snippet_pending_sum += pending_impacts.get(cfg["snippet_key"], 0.0)
+            if "extra_snippet_key" in cfg:
+                snippet_pending_sum += pending_impacts.get(cfg["extra_snippet_key"], 0.0)
+            cfg["value"] = snippet_pending_sum
 
-    # Build bars: Current first, then categories stacking upward, Total last
+    # Normalize all segments to sum to exactly 100.0% dynamically
+    total_val_sum = sum(cfg["value"] for cfg in segment_cfg.values())
+    if total_val_sum > 0:
+        scale = 100.0 / total_val_sum
+        for cfg in segment_cfg.values():
+            cfg["value"] *= scale
+    else:
+        segment_cfg["whitespace"]["value"] = 100.0
+
+    # Order of presentation in waterfall
+    order = ["clean", "whitespace", "faded", "logo", "stamp", "handwritten", "noise"]
+    
     bars = []
-
-    # 1. Current Accuracy — solid green bar
-    bars.append({
-        "label": "Current",
-        "value": current_accuracy,
-        "bottom": 0.0,
-        "color": "#16A34A",
-        "fill_color": "#16A34A",
-        "text": f"{current_accuracy:.2f}%",
-        "style": "solid",
-    })
-
-    # 2. Category error bars — each starts where the previous ended above current accuracy
-    sorted_types = sorted(by_type.items(), key=lambda kv: kv[1]["impact"], reverse=True)
-    running_bottom = current_accuracy
-    for t, data in sorted_types:
-        raw = data["impact"]
-        scaled = (raw / raw_fault_total * fault_total) if raw_fault_total > 0 else 0.0
-        label, color = category_meta.get(t, (t.title(), "#64748B"))
+    running_bottom = 0.0
+    
+    for key in order:
+        cfg = segment_cfg[key]
+        val = cfg["value"]
+        if val <= 0.001:
+            continue
+            
+        # Determine displaying label with snippet counts
+        lbl = cfg["label"]
+        count = 0
+        if "snippet_key" in cfg:
+            count += pending_counts.get(cfg["snippet_key"], 0)
+        if "extra_snippet_key" in cfg:
+            count += pending_counts.get(cfg["extra_snippet_key"], 0)
+            
+        if count > 0:
+            lbl = f"{lbl} ({count})"
+            
+        border_color = cfg["color"]
+        fill_color = cfg["color"]
+        
         bars.append({
-            "label": f"{label} ({int(data['count'])})",
-            "value": scaled,
+            "label": lbl,
+            "value": val,
             "bottom": running_bottom,
-            "color": color,
-            "fill_color": color,
-            "text": f"{raw:.2f}%",
-            "style": "solid",
+            "color": border_color,
+            "fill_color": fill_color,
+            "text": f"{val:.2f}%",
+            "style": "solid" if key != "whitespace" else "whitespace"
         })
-        running_bottom = min(100.0, running_bottom + scaled)
-
-    # 3. Total Accuracy — blue, dotted outline, light fill (last)
+        running_bottom = min(100.0, running_bottom + val)
+        
+    # Final Total bar representing 100% composition
     bars.append({
         "label": "Total",
         "value": 100.0,
@@ -277,16 +506,19 @@ def _render_accuracy_waterfall_chart(snippets: List[Dict[str, Any]], selected_do
         "color": "#2563EB",
         "fill_color": "#DBEAFE",
         "text": "100%",
-        "style": "dotted",
+        "style": "dotted"
     })
 
-    chart_width = max(800, 120 * len(bars))
-    bar_slot = max(90, int(chart_width / max(1, len(bars))))
-    bar_width = int(bar_slot * 0.35)
-    left_pad = 30
+    left_pad = 40
+    right_pad = 40
     chart_h = 240
     plot_top = 20
     plot_h = chart_h - 80
+
+    # Ensure dynamic slots fit screen space and don't overflow
+    bar_slot = max(120, int(800 / max(1, len(bars))))
+    bar_width = int(bar_slot * 0.35)
+    svg_width = left_pad + bar_slot * len(bars) + right_pad
 
     bar_rects: List[str] = []
     pct_labels: List[str] = []
@@ -306,6 +538,11 @@ def _render_accuracy_waterfall_chart(snippets: List[Dict[str, Any]], selected_do
                 f"fill='{bar['fill_color']}' stroke='{bar['color']}' stroke-width='2' "
                 f"stroke-dasharray='5,3'></rect>"
             )
+        elif bar["style"] == "whitespace":
+            bar_rects.append(
+                f"<rect x='{x}' y='{y:.1f}' width='{bar_width}' height='{px_h:.1f}' rx='6' "
+                f"fill='{bar['fill_color']}' stroke='#CBD5E1' stroke-width='1'></rect>"
+            )
         else:
             bar_rects.append(
                 f"<rect x='{x}' y='{y:.1f}' width='{bar_width}' height='{px_h:.1f}' rx='6' "
@@ -313,20 +550,23 @@ def _render_accuracy_waterfall_chart(snippets: List[Dict[str, Any]], selected_do
             )
 
         pct_labels.append(
-            f"<text x='{x + bar_width/2:.1f}' y='{max(12, y - 8):.1f}' text-anchor='middle' font-size='12' font-weight='700' fill='#0F172A'>{bar['text']}</text>"
+            f"<text x='{x + bar_width/2:.1f}' y='{max(12, y - 8):.1f}' text-anchor='middle' font-size='11' font-weight='700' fill='#0F172A'>{bar['text']}</text>"
         )
         x_labels.append(
-            f"<text x='{x + bar_width/2:.1f}' y='{chart_h - 28}' text-anchor='middle' font-size='12' font-weight='700' fill='#111827'>{bar['label']}</text>"
+            f"<text x='{x + bar_width/2:.1f}' y='{chart_h - 28}' text-anchor='middle' font-size='11' font-weight='700' fill='#111827'>{bar['label']}</text>"
         )
+        
+        border_dashed = " border:1px dashed #2563EB;" if bar["style"] == "dotted" else ""
+        border_solid = " border:1px solid #CBD5E1;" if bar["style"] == "whitespace" else ""
         legend_items.append(
             f"<span style='display:inline-flex; align-items:center; gap:6px; margin-right:14px; font-size:12px; color:#334155;'>"
-            f"<span style='display:inline-block; width:10px; height:10px; border-radius:2px; background:{bar['color']};{' border:1px dashed #2563EB;' if bar['style'] == 'dotted' else ''}'></span>"
+            f"<span style='display:inline-block; width:10px; height:10px; border-radius:2px; background:{bar['color']};{border_dashed}{border_solid}'></span>"
             f"{bar['label']}</span>"
         )
 
     svg = f"""
     <div style='border:1px solid #E5E7EB; border-radius:10px; background:#FFFFFF; padding:8px 10px 10px 10px;'>
-      <svg width='{left_pad + bar_slot * len(bars) + 20}' height='{chart_h}' viewBox='0 0 {left_pad + bar_slot * len(bars) + 20} {chart_h}'>
+      <svg width='{svg_width}' height='{chart_h}' viewBox='0 0 {svg_width} {chart_h}'>
         <line x1='{left_pad-6}' y1='{plot_top + plot_h}' x2='{left_pad + bar_slot * len(bars)}' y2='{plot_top + plot_h}' stroke='#CBD5E1' stroke-width='1.2'></line>
         {''.join(bar_rects)}
         {''.join(pct_labels)}
@@ -337,29 +577,256 @@ def _render_accuracy_waterfall_chart(snippets: List[Dict[str, Any]], selected_do
       </div>
     </div>
     """
-    components.html(svg, height=chart_h + 70, width=chart_width, scrolling=False)
+    components.html(svg, height=chart_h + 75, width=svg_width + 10, scrolling=False)
 
 
-def _is_obvious_noise_review_snippet(snippet: Dict[str, Any], working_root: Path) -> bool:
-    """Identify sparse dot/blob snippets that should not appear in visual review queue."""
-    if snippet.get("status") != "pending":
-        return False
+def _render_page_composition_bar(selected_doc: Dict[str, Any]) -> None:
+    smart_id = selected_doc.get("smart_id")
+    if not smart_id:
+        st.warning("No document selected.")
+        return
 
-    # Hard suppression only for extremely tiny impact — real cursive signatures
-    # can have low area ratios on large pages so the threshold is kept very low.
-    if snippet.get("snippet_type") == "signature":
-        try:
-            if float(snippet.get("accuracy_impact") or 0.0) <= 0.03:
-                return True
-        except Exception:
-            pass
+    breakdown = get_page_segmentation_breakdown(smart_id)
+    if not breakdown:
+        st.info("No page segmentation breakdown available for this document.")
+        return
 
-    snippet_path = _resolve_snippet_path(Path(snippet.get("snippet_path", "")), working_root)
-    if not snippet_path.exists():
-        return False
+    segment_cfg = {
+        "clean": {"label": "Clean Text", "color": "#10B981"},
+        "faded": {"label": "Faded Text", "color": "#3B82F6"},
+        "logo": {"label": "Logo/Image", "color": "#8B5CF6"},
+        "stamp": {"label": "Stamp", "color": "#F59E0B"},
+        "handwritten": {"label": "Handwritten", "color": "#EC4899"},
+        "whitespace": {"label": "Whitespace", "color": "#F1F5F9", "border": "#CBD5E1"},
+        "noise": {"label": "Noise", "color": "#64748B"},
+    }
+
+    legend_html_parts = []
+    for key, cfg in segment_cfg.items():
+        border_style = f" border: 1px solid {cfg['border']};" if "border" in cfg else ""
+        legend_html_parts.append(
+            f'<span style="display: inline-flex; align-items: center; gap: 6px;">'
+            f'<span style="display: inline-block; width: 12px; height: 12px; background: {cfg["color"]}; border-radius: 3px;{border_style}"></span>'
+            f'{cfg["label"]}</span>'
+        )
+    legend_html = "".join(legend_html_parts)
+
+    st.markdown(f"""<div style="border: 1px solid #E5E7EB; border-radius: 10px; padding: 16px; background: #FFFFFF; font-family: sans-serif; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 15px;">
+  <div style="font-weight: 700; color: #1E293B; margin-bottom: 12px; font-size: 15px;">Page-by-Page Composition Breakdown</div>
+  <!-- Legend -->
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #475569;">
+    {legend_html}
+  </div>
+</div>""", unsafe_allow_html=True)
+
+    file_path = _resolve_document_path(selected_doc.get("file_path"))
+
+    for row in breakdown:
+        page_num = row.get("page_num", 1)
+        clean = float(row.get("clean_text_pct") or 0.0)
+        faded = float(row.get("faded_text_pct") or 0.0)
+        logo = float(row.get("logo_pct") or 0.0)
+        stamp = float(row.get("stamp_pct") or 0.0)
+        handwritten = float(row.get("handwritten_pct") or 0.0)
+        whitespace = float(row.get("whitespace_pct") or 0.0)
+        noise = float(row.get("noise_pct") or 0.0)
+
+        # Normalize to 100%
+        total = clean + faded + logo + stamp + handwritten + whitespace + noise
+        if total > 0:
+            scale = 100.0 / total
+            clean *= scale
+            faded *= scale
+            logo *= scale
+            stamp *= scale
+            handwritten *= scale
+            whitespace *= scale
+            noise *= scale
+        else:
+            whitespace = 100.0
+
+        col_btn, col_bar = st.columns([1.5, 8.5])
+        with col_btn:
+            if file_path:
+                st.button(
+                    f"🔗 P. {page_num}",
+                    key=f"open_comp_page_{smart_id}_{page_num}",
+                    on_click=_open_source_document,
+                    args=(file_path, page_num),
+                    help=f"Open document to page {page_num}"
+                )
+            else:
+                st.markdown(f"**Page {page_num}**")
+
+        with col_bar:
+            page_html_parts = []
+            page_html_parts.append(f"""<div style="font-family: sans-serif; margin-bottom: 14px; padding: 8px; border: 1px solid #E2E8F0; border-radius: 8px; background: #F8FAFC;">
+  <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #64748B; margin-bottom: 4px;">
+    <span>Page {page_num} Breakdown</span>
+    <span>Width: {row.get('page_width_px', 0)}px | Height: {row.get('page_height_px', 0)}px</span>
+  </div>
+  <div style="display: flex; width: 100%; height: 20px; border-radius: 4px; overflow: hidden; background: #E2E8F0;">""")
+
+            if clean > 0:
+                page_html_parts.append(f'<div style="width: {clean:.2f}%; background: {segment_cfg["clean"]["color"]}; height: 100%;" title="Clean Text: {clean:.1f}%"></div>')
+            if faded > 0:
+                page_html_parts.append(f'<div style="width: {faded:.2f}%; background: {segment_cfg["faded"]["color"]}; height: 100%;" title="Faded Text: {faded:.1f}%"></div>')
+            if logo > 0:
+                page_html_parts.append(f'<div style="width: {logo:.2f}%; background: {segment_cfg["logo"]["color"]}; height: 100%;" title="Logo: {logo:.1f}%"></div>')
+            if stamp > 0:
+                page_html_parts.append(f'<div style="width: {stamp:.2f}%; background: {segment_cfg["stamp"]["color"]}; height: 100%;" title="Stamp: {stamp:.1f}%"></div>')
+            if handwritten > 0:
+                page_html_parts.append(f'<div style="width: {handwritten:.2f}%; background: {segment_cfg["handwritten"]["color"]}; height: 100%;" title="Handwritten: {handwritten:.1f}%"></div>')
+            if whitespace > 0:
+                ws_border = f" border-left: 1px solid {segment_cfg['whitespace']['border']}; border-right: 1px solid {segment_cfg['whitespace']['border']};"
+                page_html_parts.append(f'<div style="width: {whitespace:.2f}%; background: {segment_cfg["whitespace"]["color"]};{ws_border} height: 100%;" title="Whitespace: {whitespace:.1f}%"></div>')
+            if noise > 0:
+                page_html_parts.append(f'<div style="width: {noise:.2f}%; background: {segment_cfg["noise"]["color"]}; height: 100%;" title="Noise: {noise:.1f}%"></div>')
+
+            page_html_parts.append("""</div>
+  <!-- Numeric breakdown tooltip inline -->
+  <div style="display: flex; gap: 10px; font-size: 10px; color: #64748B; margin-top: 5px; flex-wrap: wrap;">""")
+
+            metrics = [
+                ("clean", clean, "Text"),
+                ("faded", faded, "Faded"),
+                ("logo", logo, "Logo"),
+                ("stamp", stamp, "Stamp"),
+                ("handwritten", handwritten, "Hand"),
+                ("whitespace", whitespace, "WS"),
+                ("noise", noise, "Noise"),
+            ]
+            for key, val, short_lbl in metrics:
+                if val > 0:
+                    cfg = segment_cfg[key]
+                    border_style = f" border: 1px solid {cfg['border']};" if "border" in cfg else ""
+                    pill_html = (
+                        f'<span style="display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">'
+                        f'<span style="display: inline-block; width: 8px; height: 8px; background: {cfg["color"]}; border-radius: 2px;{border_style}"></span>'
+                        f'{short_lbl}: {val:.1f}%</span>'
+                    )
+                    page_html_parts.append(pill_html)
+
+            page_html_parts.append("</div></div>")
+
+            st.markdown("".join(page_html_parts), unsafe_allow_html=True)
+
+
+def _run_auto_tagging(
+    accepted_review_id: str,
+    smart_id: str,
+    visual_memory: Any,
+    working_root: str,
+    db_conn=None,
+) -> int:
+    """Run auto-tagging: after accepting one snippet, auto-accept similar pending siblings.
+
+    Args:
+        accepted_review_id: The review_id that was just accepted.
+        smart_id: The document ID.
+        visual_memory: VisualMemoryEngine instance.
+        working_root: Path to the working root directory (for vector resolution).
+        db_conn: Optional SQLite connection for testing.
+
+    Returns:
+        Number of snippets auto-tagged.
+    """
+    if visual_memory is None:
+        return 0
 
     try:
-        arr = np.array(Image.open(str(snippet_path)).convert("L"))
+        if db_conn is not None:
+            rows = db_conn.execute(
+                """SELECT review_id, snippet_type, snippet_path, extracted_text
+                   FROM snippet_reviews
+                   WHERE smart_id=? AND status='pending' AND review_id!=?""",
+                (smart_id, accepted_review_id)
+            ).fetchall()
+            all_reviews = [dict(r) for r in rows]
+        else:
+            all_reviews = get_all_reviews_for_doc(smart_id)
+            all_reviews = [r for r in all_reviews
+                           if r.get("status") == "pending"
+                           and r.get("review_id") != accepted_review_id]
+
+        vector_dir = Path(working_root) / "data" / "visual_memory" / smart_id
+        auto_count = 0
+
+        for sibling in all_reviews:
+            sib_id = sibling.get("review_id") or sibling[0]
+            sib_path = sibling.get("snippet_path") or sibling[2]
+            sib_type = sibling.get("snippet_type") or sibling[1]
+            sib_text = sibling.get("extracted_text") or (sibling[3] if isinstance(sibling, tuple) and len(sibling) > 3 else None)
+
+            ELIGIBLE_AUTO_TAG_TYPES = {"signature", "stamp", "logo"}
+            if sib_type not in ELIGIBLE_AUTO_TAG_TYPES:
+                continue
+
+            resolved = _resolve_snippet_path(str(sib_path), working_root)
+            if not resolved or not Path(resolved).exists():
+                continue
+            try:
+                is_match, _ = visual_memory.match_snippet(
+                    candidate_image_path=resolved,
+                    approved_vectors_dir=str(vector_dir),
+                    threshold=0.90,
+                    candidate_text=sib_text,
+                )
+                if is_match:
+                    update_snippet_review_status(
+                        sib_id,
+                        status="accepted",
+                        review_reason=f"Auto-tagged from {accepted_review_id}",
+                        db_conn=db_conn,
+                    )
+                    auto_count += 1
+            except Exception:
+                pass
+
+        return auto_count
+    except Exception:
+        return 0
+
+
+def _update_opensearch_with_retry(
+    os_client: Any,
+    smart_id: str,
+    updates: Dict[str, Any],
+    max_retries: int = 3,
+    delay_s: float = 0.5,
+) -> Optional[Any]:
+    """Update OpenSearch document with automatic retry on version conflicts.
+
+    Args:
+        os_client: OpenSearch client instance with update_document method.
+        smart_id: Document ID to update.
+        updates: Dict of field updates to apply.
+        max_retries: Maximum number of retry attempts.
+        delay_s: Initial delay between retries (doubles each attempt).
+
+    Returns:
+        The result of the successful update, or None if all retries failed.
+    """
+    import time
+    last_exc = None
+    for attempt in range(max_retries):
+        try:
+            return os_client.update_document(smart_id, updates)
+        except Exception as exc:
+            last_exc = exc
+            if attempt < max_retries - 1:
+                time.sleep(delay_s * (2 ** attempt))
+    if last_exc:
+        raise last_exc
+    return None
+
+
+
+@st.cache_data(show_spinner=False)
+def cached_is_obvious_noise(snippet_path_str: str) -> bool:
+    """Check if the snippet at the path is obvious noise (cached)."""
+    try:
+        arr = np.array(Image.open(snippet_path_str).convert("L"))
         if arr.ndim != 2:
             return False
 
@@ -381,6 +848,41 @@ def _is_obvious_noise_review_snippet(snippet: Dict[str, Any], working_root: Path
         )
     except Exception:
         return False
+
+
+@st.cache_data(show_spinner=False)
+def get_cached_card_thumbnail(snippet_path_str: str, width: int = 480, height: int = 160) -> bytes:
+    """Build a fixed-size thumbnail canvas and return as JPEG bytes (cached)."""
+    import io
+    try:
+        with Image.open(snippet_path_str) as img:
+            thumb = _build_uniform_thumbnail(img, width=width, height=height)
+            buf = io.BytesIO()
+            thumb.save(buf, format="JPEG", quality=85)
+            return buf.getvalue()
+    except Exception:
+        return b""
+
+
+def _is_obvious_noise_review_snippet(snippet: Dict[str, Any], working_root: Path) -> bool:
+    """Identify sparse dot/blob snippets that should not appear in visual review queue."""
+    if snippet.get("status") != "pending":
+        return False
+
+    # Hard suppression only for extremely tiny impact — real cursive signatures
+    # can have low area ratios on large pages so the threshold is kept very low.
+    if snippet.get("snippet_type") == "signature":
+        try:
+            if float(snippet.get("accuracy_impact") or 0.0) <= 0.03:
+                return True
+        except Exception:
+            pass
+
+    snippet_path = _resolve_snippet_path(Path(snippet.get("snippet_path", "")), working_root)
+    if not snippet_path:
+        return False
+
+    return cached_is_obvious_noise(str(snippet_path))
 
 
 def _is_printed_font_review_snippet(snippet: Dict[str, Any], working_root: Path) -> bool:
@@ -538,40 +1040,111 @@ def _render_snippet_card(
     file_path = str(snippet.get("file_path") or "")
     doc_link = _build_document_page_link(file_path=file_path, page_num=int(page_num or 1))
 
-    card_padding = "0.85rem" if compact else "1.2rem"
-    label_font = "0.72rem" if compact else "0.75rem"
-    tag_padding = "0.25rem 0.55rem" if compact else "0.3rem 0.7rem"
+    # Wrap the entire card in a container with a border
+    with st.container(border=True):
+        # Anchor div for CSS selectors to target container and apply premium hovers and shadows
+        st.markdown(f'<div class="snippet-card-anchor {status}"></div>', unsafe_allow_html=True)
+        
+        # ── Row 1: Header (Type tag, Page Number / Link) ──
+        # Render type badge and page link in a single row
+        badge_html = f"""
+            <div style="margin-top: 4px;">
+                <span style="
+                    background: {type_cfg['bg']};
+                    color: {type_cfg['color']};
+                    font-size: 0.72rem;
+                    font-weight: 600;
+                    padding: 0.2rem 0.55rem;
+                    border-radius: 4px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                    white-space: nowrap;
+                ">{type_cfg['icon']} {type_cfg['label']}</span>
+            </div>
+        """
+        
+        col_badge, col_btn = st.columns([1.8, 1.2])
+        with col_badge:
+            st.markdown(badge_html, unsafe_allow_html=True)
+        with col_btn:
+            if file_path:
+                st.button(
+                    f"📄 P. {page_num} 🔗",
+                    key=f"open_card_page_{review_id}_{idx}",
+                    on_click=_open_source_document,
+                    args=(file_path, page_num),
+                    use_container_width=True,
+                    help=f"Open document to page {page_num}"
+                )
+            else:
+                st.markdown(
+                    f'<div style="text-align: right; margin-top: 4px;"><span style="background:#F1F5F9; color:#94A3B8; font-size:0.71rem; padding:0.2rem 0.5rem; border-radius:4px; border:1px solid #E2E8F0; display:inline-block;">📄 P. {page_num}</span></div>',
+                    unsafe_allow_html=True
+                )
 
-    # ── Card container ──
-    st.markdown(
-        f"""
-        <div style="
-            border: 1px solid {type_cfg['border']};
-            border-radius: 12px;
-            padding: {card_padding};
-            background: linear-gradient(135deg, {type_cfg['bg']} 0%, #FFFFFF 100%);
-            margin-bottom: 0.55rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        ">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                <div style="display:flex; align-items:center; gap:0.5rem;">
-                    <span style="
-                        background:{type_cfg['color']};
-                        color:white;
-                        font-size:{label_font};
-                        font-weight:700;
-                        padding:{tag_padding};
-                        border-radius:6px;
-                        letter-spacing:0.3px;
-                    ">{type_cfg['icon']} {type_cfg['label']}</span>
-                    <span style="
-                        font-size:{label_font};
-                        color:#6B7280;
-                        font-weight:500;
-                        background:#F3F4F6;
-                        padding:0.2rem 0.45rem;
-                        border-radius:4px;
-                    ">📄 Page {page_num}</span>
+
+        # ── Row 2: Render Snippet Image ──
+        if snippet_path:
+            try:
+                if compact:
+                    # Use cached card thumbnail to avoid opening and resizing on every rerun
+                    thumb_bytes = get_cached_card_thumbnail(str(snippet_path), width=480, height=160)
+                    if thumb_bytes:
+                        st.image(thumb_bytes, use_column_width=True)
+                    else:
+                        st.error("Failed to generate snippet thumbnail")
+                else:
+                    st.image(str(snippet_path), use_column_width=True)
+            except Exception as img_err:
+                st.error(f"Could not load snippet image: {img_err}")
+        else:
+            orig_name = Path(snippet.get("snippet_path", "")).name
+            st.warning(f"Snippet file not found: `{orig_name}`")
+
+        # ── Row 3: Metadata Details (Notion-style property grid) ──
+        st.markdown(f"""
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2E8F0; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.75rem; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                <tbody>
+                    <tr style="border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 0.4rem 0.6rem; color: #64748B; font-weight: 500; background: #FAFAFB; width: 45%; border-right: 1px solid #E2E8F0;">Status</td>
+                        <td style="padding: 0.4rem 0.6rem; text-align: right;">
+                            <span style="background: {status_cfg['bg']}; color: {status_cfg['color']}; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 500; font-size: 0.7rem;">{status_cfg['label']}</span>
+                        </td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 0.4rem 0.6rem; color: #64748B; font-weight: 500; background: #FAFAFB; border-right: 1px solid #E2E8F0;">Role</td>
+                        <td style="padding: 0.4rem 0.6rem; color: #1E293B; font-weight: 500; text-align: right;">{reviewer_role}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.4rem 0.6rem; color: #64748B; font-weight: 500; background: #FAFAFB; border-right: 1px solid #E2E8F0;">Accuracy Impact</td>
+                        <td style="padding: 0.4rem 0.6rem; color: #DC2626; font-weight: 600; text-align: right;">-{accuracy_impact:.2f}%</td>
+                    </tr>
+                </tbody>
+            </table>
+        """, unsafe_allow_html=True)
+
+        with st.expander("Tesseract Extracted", expanded=False):
+            st.code(
+                extracted_text if extracted_text.strip() else "(empty)",
+                language=None,
+            )
+
+        # ── Row 4: Review reason + review metadata for already-reviewed items ──
+        if status in ("accepted", "rejected"):
+            reason = snippet.get("review_reason", "")
+            reviewed_by = snippet.get("reviewed_by", "")
+            reviewed_at = snippet.get("reviewed_at", "")
+            action_label = "Accepted" if status == "accepted" else "Rejected"
+            st.markdown(
+                f"""
+                <div style="
+                    background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px;
+                    padding:0.6rem 0.8rem; margin-top:0.3rem; font-size:0.75rem; color:#334155;
+                ">
+                    <b>{action_label}</b> by <i>{reviewed_by or 'Unknown'}</i>
+                    {f'on {reviewed_at[:19]}' if reviewed_at else ''}<br/>
+                    {f'<b>Reason:</b> {reason}' if reason else ''}
                 </div>
                 <span style="
                     background:{status_cfg['bg']};
@@ -914,6 +1487,123 @@ def render_snippet_review_tab(config: Any) -> None:
     # ── Page Header ──
     st.markdown(
         """
+        <style>
+        /* CSS to style standard Streamlit container with border for premium snippet card */
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor) {
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 14px !important;
+            background: #FFFFFF !important;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03) !important;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            padding: 1rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor):hover {
+            transform: translateY(-3px) !important;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.07) !important;
+            border-color: #CBD5E1 !important;
+        }
+
+        /* Dim and color-code accepted cards */
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor.accepted) {
+            border: 1px solid #A7F3D0 !important;
+            background-color: #FAFAF9 !important;
+            opacity: 0.65 !important;
+            box-shadow: none !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor.accepted):hover {
+            opacity: 1.0 !important;
+            border-color: #34D399 !important;
+        }
+
+        /* Dim and color-code rejected cards */
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor.rejected) {
+            border: 1px solid #FECACA !important;
+            background-color: #FAFAF9 !important;
+            opacity: 0.65 !important;
+            box-shadow: none !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor.rejected):hover {
+            opacity: 1.0 !important;
+            border-color: #F87171 !important;
+        }
+
+        /* Crop image framed preview */
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor) div[data-testid="stImage"] {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            background-color: #F8FAFC !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 8px !important;
+            overflow: hidden !important;
+            padding: 0 !important;
+            margin: 0.35rem 0 !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor) div[data-testid="stImage"] img {
+            width: 100% !important;
+            height: auto !important;
+            object-fit: contain !important;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+
+        /* Hover zoom micro-animation */
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor) div[data-testid="stImage"]:hover img {
+            transform: scale(1.05) !important;
+        }
+
+        /* Hide fullscreen expand button inside card images to prevent Streamlit layout engine crashing/flickering */
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor) button[title*="fullscreen"],
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor) button[data-testid="stImageFullscreenButton"],
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor) div[data-testid="stImage"] button {
+            display: none !important;
+        }
+
+        /* Style selectbox input */
+        div[data-testid="stSelectbox"] {
+            margin-top: 0.25rem !important;
+        }
+
+        /* Style the buttons in card columns */
+        div[data-testid="stVerticalBlockBorderWrapper"]:not(:has(div[data-testid="stVerticalBlockBorderWrapper"])):has(div.snippet-card-anchor) button {
+            border-radius: 6px !important;
+            font-size: 0.75rem !important;
+            font-weight: 500 !important;
+            padding: 0.3rem 0.6rem !important;
+            transition: all 0.2s ease !important;
+            box-shadow: none !important;
+        }
+
+        /* Notion-style Accept button */
+        div[data-testid="column"]:has(div.accept-btn-marker) button,
+        div[data-testid="column"]:has(div.submit-accept-btn-marker) button {
+            background-color: #e3f2e7 !important;
+            border: 1px solid rgba(43, 89, 63, 0.15) !important;
+            color: #1e5230 !important;
+        }
+        div[data-testid="column"]:has(div.accept-btn-marker) button:hover,
+        div[data-testid="column"]:has(div.submit-accept-btn-marker) button:hover {
+            background-color: #d2ebd9 !important;
+            border-color: rgba(43, 89, 63, 0.3) !important;
+        }
+
+        /* Notion-style Reject button */
+        div[data-testid="column"]:has(div.reject-btn-marker) button {
+            background-color: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #dc2626 !important;
+        }
+        div[data-testid="column"]:has(div.reject-btn-marker) button:hover {
+            background-color: #fdebeb !important;
+            border-color: #f8cdcd !important;
+            color: #b32b2b !important;
+        }
+        </style>
+        
         <div style="margin-bottom:0.5rem;">
             <h3 style="margin:0; color:#1E293B;">🔍 Visual Verification Portal</h3>
             <p style="margin:0.2rem 0 0 0; font-size:0.85rem; color:#64748B;">
@@ -1197,8 +1887,12 @@ def render_snippet_review_tab(config: Any) -> None:
         if hidden_text_count > 0:
             st.caption(f"Auto-hidden {hidden_text_count} text-like snippets (kept in OCR flow).")
 
-        st.markdown("<div style='margin:0.35rem 0 0.5rem 0;'><b>Accuracy Impact Waterfall</b></div>", unsafe_allow_html=True)
-        _render_accuracy_waterfall_chart(filtered, selected_doc)
+        view_tabs = st.tabs(["Waterfall Analysis", "Page Composition"])
+        with view_tabs[0]:
+            st.markdown("<div style='margin:0.35rem 0 0.5rem 0;'><b>Accuracy Impact Waterfall</b></div>", unsafe_allow_html=True)
+            _render_accuracy_waterfall_chart(all_snippets, selected_doc)
+        with view_tabs[1]:
+            _render_page_composition_bar(selected_doc)
 
         if not filtered:
             st.info(f"No snippets matching filters: Status={status_filter}, Role={role_filter} ({len(all_snippets)} total available)")
