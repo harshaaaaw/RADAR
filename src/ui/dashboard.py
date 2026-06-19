@@ -9,6 +9,9 @@ The page content updates without full refresh - only the data changes, not the l
 
 from __future__ import annotations
 
+import mimetypes
+mimetypes.add_type('application/pdf', '.pdf')
+
 import html as _html
 import importlib
 import os
@@ -169,12 +172,16 @@ def _schedule_fallback_rerun(interval_seconds: int) -> None:
     try:
         import streamlit.components.v1 as components
 
-        interval_ms = max(1000, int(interval_seconds) * 1000)
+        interval_ms = max(3000, int(interval_seconds) * 1000)
         components.html(
             f"""<script>
-            setTimeout(function() {{
-                window.parent.postMessage({{type: 'streamlit:rerun'}}, '*');
-            }}, {interval_ms});
+            if (!window.parent.__streamlit_rerun_timer_active) {{
+                window.parent.__streamlit_rerun_timer_active = true;
+                setTimeout(function() {{
+                    window.parent.__streamlit_rerun_timer_active = false;
+                    window.parent.postMessage({{type: 'streamlit:rerun'}}, '*');
+                }}, {interval_ms});
+            }}
             </script>""",
             height=0,
         )
@@ -222,7 +229,45 @@ def open_file_with_default_app(filepath: str) -> None:
 
     try:
         if os.name == 'nt':  # Windows
-            os.startfile(filepath)
+            # os.startfile silently fails when the Streamlit process runs in a
+            # background/non-interactive desktop session (Session 0 or hidden winsta).
+            # Routing via a temporary Scheduled Task forces Windows to execute the
+            # launch in the user's active interactive desktop (winsta0\default).
+            import tempfile
+            import time
+            temp_dir = tempfile.gettempdir()
+            ts = int(time.time() * 1000)
+            bat_name = f"open_doc_{ts}.bat"
+            bat_path = os.path.join(temp_dir, bat_name)
+            task_name = f"OpenDocTask_{ts}"
+            try:
+                # Write a batch that opens the file with the default app
+                with open(bat_path, "w") as _bf:
+                    _bf.write("@echo off\n")
+                    _bf.write(f'start "" "{resolved}"\n')
+                # Create the scheduled task
+                subprocess.run(
+                    ["schtasks", "/create", "/tn", task_name, "/tr",
+                     f'"{bat_path}"', "/sc", "once", "/st", "12:00", "/f"],
+                    capture_output=True, text=True, check=True
+                )
+                # Run it immediately
+                subprocess.run(
+                    ["schtasks", "/run", "/tn", task_name],
+                    capture_output=True, text=True, check=True
+                )
+                time.sleep(0.5)
+            finally:
+                # Clean up task and batch file
+                subprocess.run(
+                    ["schtasks", "/delete", "/tn", task_name, "/f"],
+                    capture_output=True
+                )
+                try:
+                    if os.path.exists(bat_path):
+                        os.remove(bat_path)
+                except Exception:
+                    pass
         elif sys.platform == 'darwin':  # macOS
             subprocess.run(['open', filepath], check=True)
         elif os.name == 'posix':  # Linux
