@@ -135,7 +135,7 @@ class OpenSearchClient:
                             'char_filter': {
                                 'comma_stripper': {
                                     'type': 'pattern_replace',
-                                    'pattern': r'(?<=\d),(?=\d)',
+                                    'pattern': r'(?<=\d)[,.]+(?=\d)',
                                     'replacement': ''
                                 }
                             },

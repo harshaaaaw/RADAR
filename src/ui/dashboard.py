@@ -923,10 +923,10 @@ def extract_snippet_manually(text: str, query: str, max_length: int = 180) -> st
     for term in query_terms:
         if not term:
             continue
-        # Strip internal commas for digits
-        normalized_term = re.sub(r'(?<=\d),(?=\d)', '', term)
+        # Strip internal commas and periods for digits
+        normalized_term = re.sub(r'(?<=\d)[,.]+(?=\d)', '', term)
         if normalized_term.isdigit():
-            pattern = re.compile(r'(?<!\d)' + r',?'.join(list(normalized_term)) + r'(?!\d)', re.IGNORECASE)
+            pattern = re.compile(r'(?<!\d)' + r'[.,]?'.join(list(normalized_term)) + r'(?!\d)', re.IGNORECASE)
         else:
             escaped = re.escape(term)
             start_boundary = r'\b' if term[0].isalnum() else ''
@@ -957,9 +957,10 @@ def extract_snippet_manually(text: str, query: str, max_length: int = 180) -> st
     # Highlight matching terms
     for term in query_terms:
         if len(term) >= 3:  # Only highlight meaningful terms
-            normalized_term = re.sub(r'(?<=\d),(?=\d)', '', term)
+            # Strip internal commas and periods for digits
+            normalized_term = re.sub(r'(?<=\d)[,.]+(?=\d)', '', term)
             if normalized_term.isdigit():
-                pattern = re.compile(r'(?<!\d)' + r',?'.join(list(normalized_term)) + r'(?!\d)', re.IGNORECASE)
+                pattern = re.compile(r'(?<!\d)' + r'[.,]?'.join(list(normalized_term)) + r'(?!\d)', re.IGNORECASE)
             else:
                 escaped = re.escape(term)
                 start_boundary = r'\b' if term[0].isalnum() else ''
@@ -1507,7 +1508,7 @@ def perform_search(os_client: OpenSearchClient, query: str, limit: int = 20, fil
         }
         
         # --- TIER 5: Fuzzy Matching for Typos (10 boost) - Skip for numeric terms ---
-        fuzzy_terms = [t for t in normalized_query.split() if not re.sub(r'(?<=\d),(?=\d)', '', t).isdigit()]
+        fuzzy_terms = [t for t in normalized_query.split() if not re.sub(r'(?<=\d)[,.]+(?=\d)', '', t).isdigit()]
         if fuzzy_terms:
             bool_clauses["should"].append({
                 "multi_match": {
