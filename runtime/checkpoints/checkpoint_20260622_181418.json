@@ -1,0 +1,59 @@
+{
+  "timestamp": "20260622_181418",
+  "created_at": "2026-06-22T18:14:18.004194",
+  "queue_stats": {
+    "discovery": {
+      "pending": 0,
+      "processing": 0,
+      "completed": 50,
+      "failed": 0
+    },
+    "extraction": {
+      "tiny": {
+        "pending": 0,
+        "processing": 0,
+        "completed": 50,
+        "total": 50
+      },
+      "small": {
+        "pending": 0,
+        "processing": 0,
+        "completed": 0,
+        "total": 0
+      },
+      "medium": {
+        "pending": 0,
+        "processing": 0,
+        "completed": 0,
+        "total": 0
+      },
+      "large": {
+        "pending": 0,
+        "processing": 0,
+        "completed": 0,
+        "total": 0
+      }
+    },
+    "extraction_total": {
+      "pending": 0,
+      "processing": 0,
+      "completed": 50
+    },
+    "indexing": {
+      "pending": 0,
+      "processing": 0,
+      "completed": 50
+    },
+    "ocr": {
+      "pending": 0,
+      "processing": 0,
+      "completed": 49
+    },
+    "tagging": {
+      "pending": 0,
+      "processing": 0,
+      "completed": 50
+    }
+  },
+  "system_uptime": 1782132258.0077112
+}

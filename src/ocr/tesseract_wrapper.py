@@ -106,13 +106,12 @@ class TesseractWrapper:
         
         return modes.get(mode, '3')  # Default to AUTO
     
-    def extract_text(self, image_path: str, psm: Optional[str] = None) -> Optional[Tuple[str, float]]:
+    def extract_text(self, image_path: str) -> Optional[Tuple[str, float]]:
         """
         Extract text from image using Tesseract
         
         Args:
             image_path: Path to image file
-            psm: Optional page segmentation mode to override default
             
         Returns:
             Tuple of (extracted_text, confidence_score) or None on error
@@ -133,7 +132,7 @@ class TesseractWrapper:
                     output_base,
                     '-l', self.languages,
                     '--oem', self.engine_mode,
-                    '--psm', psm if psm is not None else self.psm,
+                    '--psm', self.psm,
                     'txt',  # Output text
                     'tsv'   # Also output TSV for confidence scores
                 ]

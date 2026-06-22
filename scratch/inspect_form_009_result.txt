@@ -1,0 +1,208 @@
+--- QUERYING DIRECT DOC ID: a9f095ebf03671ff71c7e889fc71424e6d81eebbbb82f5b59eaf4581cac7ff7e ---
+Document Found:
+{
+  "file_path": "C:\\Users\\DELL\\Downloads\\DocumentSearch\\test_data\\real_funsd_form_009.pdf",
+  "file_name": "real_funsd_form_009.pdf",
+  "file_hash": "a9f095ebf03671ff71c7e889fc71424e6d81eebbbb82f5b59eaf4581cac7ff7e",
+  "content_hash": "8fff999847b6247e0e811aab336250a82d55db4dc77fdc588b954dd491c5138c",
+  "main_content": "real_funsd_form_009",
+  "content_truncated": false,
+  "content_original_length": 19,
+  "metadata": {
+    "content_type": "application/pdf",
+    "content_length": "33261",
+    "xmptpg_npages": "1",
+    "mime_type": "application/pdf",
+    "page_count": 1
+  },
+  "embedded_files": [],
+  "embedded_count": 0,
+  "needs_ocr": true,
+  "ocr_completed": true,
+  "indexed_at": "2026-06-17T10:17:49.671166",
+  "extraction_time_ms": 2055,
+  "smart_id": "DOC-20260617-52FC",
+  "category": "Finance & Accounting",
+  "department": "GECC HQ",
+  "purpose": "Finance & Accounting",
+  "dynamic_subtags": [],
+  "key_names": [],
+  "amount_found": "",
+  "important_dates": [],
+  "location_mentioned": [],
+  "confidentiality": "Public",
+  "file_type": "pdf",
+  "parent_file": "",
+  "is_embedded": false,
+  "file_size": 33261,
+  "embedded_content": "",
+  "ocr_content": "\n--- Page 1 ---\nPLAINTIFF'S\nCOUNSEL:\n\n6\n\nWanda G. Robioson and Carroll Robinson y. Raybestos-Manhattun, et al,\n\nSan Francises Superior Court - Io, Hoga 78\n\nLorillard Tobacco Company\n\nJuly 23, 1998\n\nAngust 3, 1999\n\nAsbestos\n\nWartnick, Chaber, Harovite, Smithd Tigerman\nMadelyn J. Chaber\n101 California Street, Sutte 2700\n\nSant Francisco, California g4 lil\n415/986-5566\n\n7G216%z9\n\n666hZ9ng",
+  "ocr_confidence": 62.511612365384615,
+  "iso_country_code": "USA",
+  "tagger_version": "local-hybrid-v1",
+  "taxonomy_version": "tax-20260617-d22d313b",
+  "original_labels": {
+    "confidentiality": "Public",
+    "category": "Finance & Accounting",
+    "department": "Finance"
+  },
+  "sub_business_unit_name": "GECCHQ-Multiple",
+  "metadata_mode": "metadata_mode",
+  "record_type_code": "",
+  "record_class_name": "Functional",
+  "tag_confidence_overall": 0.8966666666666666,
+  "tag_confidence_by_field": {
+    "purpose": {
+      "score": 0.97,
+      "reasons": [
+        "metadata_explicit_raw"
+      ],
+      "used_fallback": false,
+      "label": "Finance & Accounting",
+      "source": "metadata_explicit"
+    },
+    "file_type": {
+      "score": 0.99,
+      "reasons": [
+        "deterministic_file_type"
+      ],
+      "used_fallback": false,
+      "label": "pdf",
+      "source": "deterministic_file_type"
+    },
+    "category": {
+      "score": 0.97,
+      "reasons": [
+        "metadata_explicit_raw",
+        "sheet3_constraint:sheet3_pass"
+      ],
+      "used_fallback": false,
+      "label": "Finance & Accounting",
+      "source": "metadata_explicit"
+    },
+    "department": {
+      "score": 0.75,
+      "reasons": [
+        "metadata_explicit",
+        "sheet3_forced_best_match",
+        "sheet3_constraint:sheet3_forced_best_match"
+      ],
+      "used_fallback": false,
+      "label": "Treasury",
+      "source": "metadata_explicit"
+    }
+  },
+  "tag_confidence": 0.8966666666666666,
+  "record_category_name_functional": "Finance & Accounting",
+  "data_classification_name": "GE Internal",
+  "review_required": true,
+  "metadata_level_code": "File",
+  "constraint_version": "22dee6d1b0a4207779bc3b485154945b761e4e06",
+  "metadata_source": "config",
+  "record_category_name_transactional": "",
+  "original_scores": {
+    "confidentiality": 0.9,
+    "category": 0.97,
+    "department": 0.99
+  },
+  "extended_metadata": {
+    "record class name": "Functional",
+    "record format name": "Electronic",
+    "effective time period code": "2017",
+    "commentary desc": "Treasury - GECIHL ILAAP documentation",
+    "metadata level code": "Folder",
+    "record source name": "Box - GECIHL ILAAP",
+    "record type code": "FIN210",
+    "iso country code": "USA",
+    "divestiture sale retention requirement indicator": "N",
+    "disposition": "Archive",
+    "tax related indicator": "Y",
+    "ultimate parent transaction number": "15388181427",
+    "sub business unit name": "Treasury-Multiple",
+    "preservation hold code": "N",
+    "original record location type name": "Box",
+    "preservation hold indicator": "N"
+  },
+  "record_format_name": "Electronic",
+  "constraint_source": "sheet3_forced_best_match",
+  "original_record_location_type_name": "Shared Drive",
+  "match_mode": {
+    "confidentiality": "exact",
+    "category": "exact",
+    "department": "partial"
+  },
+  "business_unit_name": "GECC HQ",
+  "divestiture_deal_name": "",
+  "forced_flag": true,
+  "tagging_status": "review_required",
+  "reviewed_content": "ENTITIES: JUDGE: Street, 62 56 LORILLARD 49 82491256",
+  "reviewed_snippets": [
+    {
+      "snippet_type": "faded_text",
+      "reviewer_role": "Faded Text Specialist",
+      "acceptance_reason": "Faded printed text recovered \u2014 verified transcription",
+      "reviewed_at": "2026-06-17T15:27:46.013839",
+      "page": 1,
+      "verified_content": "ENTITIES:"
+    },
+    {
+      "snippet_type": "faded_text",
+      "reviewer_role": "Faded Text Specialist",
+      "acceptance_reason": "Faded printed text recovered \u2014 verified transcription",
+      "reviewed_at": "2026-06-17T15:30:11.817229",
+      "page": 1,
+      "verified_content": "JUDGE:"
+    },
+    {
+      "snippet_type": "signature",
+      "reviewer_role": "Contract Auditor",
+      "acceptance_reason": "Authorized signatory \u2014 verified signer identity",
+      "reviewed_at": "2026-06-17T15:31:17.174466",
+      "page": 1,
+      "verified_content": "Street,"
+    },
+    {
+      "snippet_type": "faded_text",
+      "reviewer_role": "Faded Text Specialist",
+      "acceptance_reason": "Faded printed text recovered \u2014 verified transcription",
+      "reviewed_at": "2026-06-17T15:32:17.509964",
+      "page": 1,
+      "verified_content": "62"
+    },
+    {
+      "snippet_type": "faded_text",
+      "reviewer_role": "Faded Text Specialist",
+      "acceptance_reason": "Faded printed text recovered \u2014 verified transcription",
+      "reviewed_at": "2026-06-17T15:32:42.734812",
+      "page": 1,
+      "verified_content": "56"
+    },
+    {
+      "snippet_type": "faded_text",
+      "reviewer_role": "Faded Text Specialist",
+      "acceptance_reason": "Faded printed text recovered \u2014 verified transcription",
+      "reviewed_at": "2026-06-17T15:33:02.477799",
+      "page": 1,
+      "verified_content": "LORILLARD"
+    },
+    {
+      "snippet_type": "faded_text",
+      "reviewer_role": "Faded Text Specialist",
+      "acceptance_reason": "Faded printed text recovered \u2014 verified transcription",
+      "reviewed_at": "2026-06-17T15:33:38.388232",
+      "page": 1,
+      "verified_content": "49"
+    },
+    {
+      "snippet_type": "faded_text",
+      "reviewer_role": "Faded Text Specialist",
+      "acceptance_reason": "Faded printed text recovered \u2014 verified transcription",
+      "reviewed_at": "2026-06-17T15:34:16.850975",
+      "page": 1,
+      "verified_content": "82491256"
+    }
+  ]
+}
+
+--- QUERYING BY file_hash field ---
+Hits count: 0

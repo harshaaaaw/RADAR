@@ -21,20 +21,10 @@ discovery.type: single-node
 bootstrap.memory_lock: false
 
 # Paths - Windows
-path.data: ["D:\\DocumentSearch\\opensearch\\data"]
-path.logs: "D:\\DocumentSearch\\opensearch\\logs"
+path.data: ["C:\\Users\\DELL\\Music\\DocumentSearch\\runtime\\opensearch\\data"]
+path.logs: "C:\\Users\\DELL\\Music\\DocumentSearch\\runtime\\opensearch\\logs"
 
-# Thread Pools (optimized for 64 vCPU bulk indexing)
-thread_pool:
-  write:
-    size: 48
-    queue_size: 3000
-  search:
-    size: 32
-    queue_size: 2000
-  get:
-    size: 32
-    queue_size: 2000
+# Thread Pools auto-configured based on CPU cores
 
 # Index Settings
 action.auto_create_index: true

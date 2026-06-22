@@ -1,0 +1,590 @@
+[
+  {
+    "review_id": "DOC-20260617-E4D4_p1_signature_7af555d6",
+    "type": "signature",
+    "filename": "page_1_signature_1.png",
+    "bbox": [
+      779,
+      1878,
+      1096,
+      1939
+    ],
+    "txt_std": "",
+    "txt_prep": "C brew Review",
+    "txt_enhanced": "}ror Review"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_signature_31eb7b9b",
+    "type": "stamp",
+    "filename": "page_1_signature_2.png",
+    "bbox": [
+      2092,
+      1878,
+      2309,
+      1939
+    ],
+    "txt_std": "(_\\Ptease |",
+    "txt_prep": "(iptease |",
+    "txt_enhanced": "(_lpPtease |"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_signature_82faaf7f",
+    "type": "stamp",
+    "filename": "page_1_signature_3.png",
+    "bbox": [
+      496,
+      1878,
+      721,
+      1939
+    ],
+    "txt_std": "(Clurgent",
+    "txt_prep": "[iusgent",
+    "txt_enhanced": "(Clurgent"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_signature_828b6b02",
+    "type": "signature",
+    "filename": "page_1_signature_4.png",
+    "bbox": [
+      1283,
+      3778,
+      1484,
+      3823
+    ],
+    "txt_std": "",
+    "txt_prep": "",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_logo_c980da33",
+    "type": "logo",
+    "filename": "page_1_logo_6.png",
+    "bbox": [
+      517,
+      1061,
+      970,
+      1263
+    ],
+    "txt_std": "Fax",
+    "txt_prep": "Fax",
+    "txt_enhanced": "Fax"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_c0fa43ad",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_7.png",
+    "bbox": [
+      447,
+      3163,
+      2553,
+      3437
+    ],
+    "txt_std": "Ths facsimile mary contain privieged and confidenteal information intended only for te use of the individual or eniity named above. Hi the racer of tha facemils it not the intended recipient or employes or pgent responsible for defvering & ip the inkended recipient, pou ate hereby nokfiad thal any dissemination or copying of this facsimile ig shictly prohiblted. if you have received this ficsimwe in enor, please nobly us inmediately by telephone (number indicated below) and retum the original facsimile to us. at Gye address below via the 0. 5, Postal Service.",
+    "txt_prep": "Thie facsimdic men contain pivdeged and confidential information intended only for tha wse of the iodnvidiaal ar ortity featrued abows, Hthe raacer of the Gxcarnile te not the intended recigient or emgioyee or agent maponcible Fer deere Ht bo the Bikarckecd mebclpecerl, 3pOUs Soi bese\u2019 cota Hnkary dissension or copying of this Record ly sbictly pronibltad. iPyou hari received this ieeinwe in efor, place noldy us Pnmediately by ephone (paanber indicabed below) and satan ihe ogiginal esimle ious a! ihe edieete below via far U. 5. Postal Service.",
+    "txt_enhanced": "The facsinde may contain privieged and confidential Information intended only for tho wae of the individual or anity named above. ithe reader of the facsimile is not the intended recipient or employee or agent responsible for defvering ft ip the intended recipient, you ave hereby nokfiad thal. any disnemination or copying of this fecsinile ig sicily prohiblied, Ifyou have received this facsinwe in enor, please nobly us inmediately by telephone (number indicated below) and ratum the original \u2018facsimile tous at Ge address below via the U.S, Postal Service,"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_10ddf4df",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_11.png",
+    "bbox": [
+      481,
+      1863,
+      1115,
+      1970
+    ],
+    "txt_std": "(CJurgent (ror Review",
+    "txt_prep": "",
+    "txt_enhanced": "CJurgent ([_)For Review"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_e246fc80",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_12.png",
+    "bbox": [
+      1281,
+      3597,
+      1753,
+      3737
+    ],
+    "txt_std": "208 River Aldae Circle P.O. Box 1535 Bumevitie, MN S5aa7",
+    "txt_prep": "205 River Plea Crete P.O. Box 7585 Bunnie, MN S397",
+    "txt_enhanced": "208 River Rldae Circle P.O. Box 1538 Bumevilla, MN 55337"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_220e5c84",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_16.png",
+    "bbox": [
+      1414,
+      263,
+      1970,
+      370
+    ],
+    "txt_std": "LORILLARD RGN\u00a5L1 \u2014_\" \u2014",
+    "txt_prep": "LORILLARD RGMALL",
+    "txt_enhanced": "LORILLARD RGNFiL"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_2954f178",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_17.png",
+    "bbox": [
+      2714,
+      3218,
+      2853,
+      3604
+    ],
+    "txt_std": "ho cn co fh eo in ee |",
+    "txt_prep": "id _",
+    "txt_enhanced": "ho on on ih ix cm a"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_8835ad0b",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_19.png",
+    "bbox": [
+      1247,
+      3763,
+      1786,
+      3837
+    ],
+    "txt_std": "Telephone: (952) 894-2048",
+    "txt_prep": "",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_8555e377",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_20.png",
+    "bbox": [
+      751,
+      297,
+      1186,
+      379
+    ],
+    "txt_std": "qe12 $94 9690",
+    "txt_prep": "qyeise \u00a7a4 9090",
+    "txt_enhanced": "qe12 $94 9590"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_78df8d5a",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_21.png",
+    "bbox": [
+      1143,
+      1872,
+      1649,
+      1941
+    ],
+    "txt_std": "[} Please Comment",
+    "txt_prep": "Please Comnant",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_9a722a67",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_22.png",
+    "bbox": [
+      1024,
+      1617,
+      1411,
+      1704
+    ],
+    "txt_std": "temo",
+    "txt_prep": "",
+    "txt_enhanced": "bern Ostro smmnsilismnsionesiaifleisannianmmnd"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_fba9bec8",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_24.png",
+    "bbox": [
+      164,
+      297,
+      486,
+      370
+    ],
+    "txt_std": "\u201cU5 /02/00",
+    "txt_prep": "= \u201cD5 (OE? 09",
+    "txt_enhanced": "\"05/02/00"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_cb0993cc",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_25.png",
+    "bbox": [
+      2481,
+      255,
+      2757,
+      329
+    ],
+    "txt_std": "oor ced",
+    "txt_prep": "eas \u201caod",
+    "txt_enhanced": "MeoL Ged"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_37f15afa",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_26.png",
+    "bbox": [
+      1089,
+      1563,
+      1531,
+      1608
+    ],
+    "txt_std": "",
+    "txt_prep": "EE Ee",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_7d6850b5",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_27.png",
+    "bbox": [
+      614,
+      1212,
+      917,
+      1270
+    ],
+    "txt_std": "",
+    "txt_prep": "Ears",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_63aad7f7",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_28.png",
+    "bbox": [
+      2068,
+      326,
+      2478,
+      366
+    ],
+    "txt_std": "",
+    "txt_prep": "",
+    "txt_enhanced": "SxS SE"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_d876e530",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_29.png",
+    "bbox": [
+      1853,
+      1867,
+      2070,
+      1941
+    ],
+    "txt_std": "xe Reply",
+    "txt_prep": "",
+    "txt_enhanced": "ie Reply"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_7c6879d6",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_30.png",
+    "bbox": [
+      472,
+      1435,
+      749,
+      1491
+    ],
+    "txt_std": "en ae,",
+    "txt_prep": "ae mes SE",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_b6d00751",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_31.png",
+    "bbox": [
+      1411,
+      3097,
+      1786,
+      3137
+    ],
+    "txt_std": "",
+    "txt_prep": "",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_40d3f651",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_33.png",
+    "bbox": [
+      2225,
+      1892,
+      2516,
+      1937
+    ],
+    "txt_std": "pase Recycle",
+    "txt_prep": "fase Hecyote",
+    "txt_enhanced": "rise Recycle"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_725d8775",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_34.png",
+    "bbox": [
+      481,
+      2430,
+      653,
+      2504
+    ],
+    "txt_std": "Rick",
+    "txt_prep": "Ritk",
+    "txt_enhanced": "Rick"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_8cdbd7b3",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_35.png",
+    "bbox": [
+      1660,
+      1863,
+      1861,
+      1924
+    ],
+    "txt_std": ". Pieces",
+    "txt_prep": "",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_4fb90d12",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_36.png",
+    "bbox": [
+      1481,
+      1730,
+      1753,
+      1775
+    ],
+    "txt_std": "",
+    "txt_prep": "",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_3001ea45",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_37.png",
+    "bbox": [
+      481,
+      1537,
+      715,
+      1587
+    ],
+    "txt_std": "",
+    "txt_prep": "",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_14a5ef5a",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_38.png",
+    "bbox": [
+      593,
+      1146,
+      766,
+      1212
+    ],
+    "txt_std": "a",
+    "txt_prep": "a",
+    "txt_enhanced": "a"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_60ff8c7c",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_39.png",
+    "bbox": [
+      743,
+      1097,
+      978,
+      1145
+    ],
+    "txt_std": "",
+    "txt_prep": "",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_7bc85077",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_40.png",
+    "bbox": [
+      1501,
+      1767,
+      1757,
+      1806
+    ],
+    "txt_std": "",
+    "txt_prep": "4 yee",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_bfe99b29",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_41.png",
+    "bbox": [
+      1493,
+      1578,
+      1627,
+      1649
+    ],
+    "txt_std": "",
+    "txt_prep": "",
+    "txt_enhanced": "Ee ewe"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_ff236f9a",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_42.png",
+    "bbox": [
+      2381,
+      4030,
+      2620,
+      4066
+    ],
+    "txt_std": "\u2014_ ns ES",
+    "txt_prep": "| de \u2014 \u2014 \u2122",
+    "txt_enhanced": "_ a"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_e7c6ba13",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_43.png",
+    "bbox": [
+      2077,
+      1876,
+      2220,
+      1933
+    ],
+    "txt_std": "Cite;",
+    "txt_prep": "Cir te;",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_8d35343e",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_44.png",
+    "bbox": [
+      2091,
+      1567,
+      2304,
+      1604
+    ],
+    "txt_std": "",
+    "txt_prep": "",
+    "txt_enhanced": "\u2014\u2014"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_df2870a9",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_45.png",
+    "bbox": [
+      2418,
+      330,
+      2636,
+      366
+    ],
+    "txt_std": "\u2014\u2014 \u2014 ns",
+    "txt_prep": "2",
+    "txt_enhanced": "a eee \u2014 ="
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_c4549f74",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_46.png",
+    "bbox": [
+      1410,
+      1653,
+      1587,
+      1693
+    ],
+    "txt_std": "a ie \u2014",
+    "txt_prep": "i ie eee \u2014 Ck.",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_94bb1e9b",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_47.png",
+    "bbox": [
+      2264,
+      1567,
+      2486,
+      1599
+    ],
+    "txt_std": "",
+    "txt_prep": "a en",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_1d2299f9",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_48.png",
+    "bbox": [
+      2714,
+      3163,
+      2845,
+      3216
+    ],
+    "txt_std": "co",
+    "txt_prep": "",
+    "txt_enhanced": "Les"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_4a445171",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_49.png",
+    "bbox": [
+      1489,
+      1421,
+      1649,
+      1464
+    ],
+    "txt_std": "ie LE ED",
+    "txt_prep": "all lea",
+    "txt_enhanced": "ie Le be"
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_ae1be2de",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_50.png",
+    "bbox": [
+      1522,
+      3597,
+      1733,
+      3629
+    ],
+    "txt_std": "",
+    "txt_prep": "",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_5062e07b",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_51.png",
+    "bbox": [
+      2277,
+      1672,
+      2482,
+      1704
+    ],
+    "txt_std": "",
+    "txt_prep": "<r mee",
+    "txt_enhanced": ""
+  },
+  {
+    "review_id": "DOC-20260617-E4D4_p1_faded_text_fdac443d",
+    "type": "faded_text",
+    "filename": "page_1_faded_text_52.png",
+    "bbox": [
+      481,
+      1501,
+      645,
+      1541
+    ],
+    "txt_std": "",
+    "txt_prep": "",
+    "txt_enhanced": ""
+  }
+]

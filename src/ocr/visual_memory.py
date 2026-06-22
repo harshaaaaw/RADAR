@@ -4,7 +4,6 @@ from typing import Optional, Tuple
 import numpy as np
 from pathlib import Path
 from PIL import Image
-import cv2
 from core.logging_manager import get_logger
 
 logger = get_logger("ocr.visual_memory")
@@ -29,21 +28,8 @@ class VisualMemoryEngine:
         self.device = "cuda" if (_HAS_TORCH and torch.cuda.is_available()) else "cpu"
         self.model = None
         self.transform = None
-        self.net = None
 
-        # 1. Try OpenCV DNN ONNX first
-        onnx_path = "models/mobilenetv3.onnx"
-        if os.path.exists(onnx_path):
-            try:
-                self.net = cv2.dnn.readNetFromONNX(onnx_path)
-                self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-                self.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
-                logger.info(f"VisualMemoryEngine: Loaded {onnx_path} natively via OpenCV DNN")
-            except Exception as exc:
-                logger.warning(f"VisualMemoryEngine: Failed to load ONNX via OpenCV DNN: {exc}")
-
-        # 2. Fallback to Torch model if ONNX not loaded
-        if self.net is None and _HAS_TORCH:
+        if _HAS_TORCH:
             try:
                 # Use a lightweight MobileNetV3 for lightning fast CPU inference
                 self.model = models.mobilenet_v3_small(pretrained=True)
@@ -62,42 +48,11 @@ class VisualMemoryEngine:
 
     def extract_vector(self, image_path: str) -> Optional[np.ndarray]:
         """Extract a deep learning feature vector from a cropped snippet image."""
-        # Try OpenCV DNN first
-        if self.net is not None:
-            try:
-                img = Image.open(image_path).convert('RGB')
-                img_np = np.array(img)
-                # Input expects 224x224 RGB image normalized via torchvision mean/std
-                blob = cv2.dnn.blobFromImage(
-                    img_np,
-                    scalefactor=1.0/255.0,
-                    size=(224, 224),
-                    swapRB=False,  # PIL image is RGB, so keep RGB
-                    crop=False
-                )
-                # Normalize manually: (x - mean) / std
-                mean = np.array([0.485, 0.456, 0.406]).reshape(1, 3, 1, 1).astype(np.float32)
-                std = np.array([0.229, 0.224, 0.225]).reshape(1, 3, 1, 1).astype(np.float32)
-                blob = (blob - mean) / std
-
-                self.net.setInput(blob)
-                features = self.net.forward()  # Shape: (1, 576)
-                vector_np = features[0]
-
-                norm = np.linalg.norm(vector_np)
-                if norm > 0:
-                    vector_np = vector_np / norm
-                return vector_np
-            except Exception as exc:
-                logger.error(f"VisualMemoryEngine: OpenCV DNN Feature extraction failed for {image_path}: {exc}")
-
-        # Fallback to Torch torchvision
         if not _HAS_TORCH or self.model is None:
             return self._extract_fallback_hash(image_path)
 
         try:
             img = Image.open(image_path).convert('RGB')
-
             tensor = self.transform(img).unsqueeze(0).to(self.device)
             
             with torch.no_grad():
@@ -120,105 +75,13 @@ class VisualMemoryEngine:
         # Vectors are already L2-normalized, so similarity is just their dot product
         return float(np.dot(vector_a, vector_b))
 
-    def _get_review_text(self, review_id: str, db_path: Optional[str] = None) -> Optional[str]:
-        if not db_path:
-            try:
-                from core.config_manager import get_config
-                cfg = get_config()
-                db_path = str(Path(cfg.paths.working_root) / "audit" / "audit.db")
-            except Exception:
-                return None
-                
-        if not db_path or not os.path.exists(db_path):
-            return None
-            
-        import sqlite3
-        try:
-            conn = sqlite3.connect(db_path, timeout=5.0)
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT transcription_text, extracted_text FROM snippet_reviews WHERE review_id = ?",
-                (review_id,)
-            )
-            row = cursor.fetchone()
-            conn.close()
-            if row:
-                # Use transcription_text if set (verified by human), otherwise raw extracted_text
-                return row[0] if row[0] else row[1]
-        except Exception as e:
-            logger.error(f"VisualMemoryEngine: Error querying review text for {review_id}: {e}")
-            
-        return None
-
-    def _match_vector_with_text(
-        self,
-        candidate_vector: np.ndarray,
-        vectors_dir: str,
-        threshold: float,
-        candidate_text: Optional[str] = None,
-        db_path: Optional[str] = None,
-    ) -> Tuple[bool, Optional[str]]:
-        vectors_path = Path(vectors_dir)
-        if not vectors_path.exists():
-            return False, None
-
-        best_score = -1.0
-        best_match_path = None
-
-        # Clean candidate text if provided
-        import re
-        import difflib
-        
-        clean_candidate = re.sub(r"[^a-zA-Z0-9]", "", candidate_text).lower() if candidate_text else ""
-
-        for f in vectors_path.glob("*.npy"):
-            try:
-                approved_vector = np.load(str(f))
-                score = self.compute_similarity(candidate_vector, approved_vector)
-                if score > best_score:
-                    # Perform hybrid text-similarity validation if score passes threshold
-                    if score >= threshold:
-                        # Load template text using review_id (filename stem)
-                        template_review_id = f.stem
-                        template_text = self._get_review_text(template_review_id, db_path)
-                        clean_template = re.sub(r"[^a-zA-Z0-9]", "", template_text).lower() if template_text else ""
-                        
-                        # If both texts are non-empty and of significant length (>= 2 chars), they must be similar
-                        if len(clean_candidate) >= 2 and len(clean_template) >= 2:
-                            text_sim = difflib.SequenceMatcher(None, clean_candidate, clean_template).ratio()
-                            if text_sim < 0.50:
-                                logger.info(
-                                    f"VisualMemoryEngine: High visual similarity ({score:.4f}) but conflicting texts "
-                                    f"('{clean_candidate}' vs '{clean_template}', similarity={text_sim:.2f}). Rejecting match."
-                                )
-                                continue # Conflicting texts, reject this match candidate
-                                
-                    best_score = score
-                    best_match_path = str(f)
-            except Exception as e:
-                logger.error(f"VisualMemoryEngine: Error matching against {f.name}: {e}")
-
-        logger.info(f"VisualMemoryEngine: Best match score: {best_score:.4f} (Threshold: {threshold})")
-        if best_score >= threshold:
-            return True, best_match_path
-        return False, None
-
-    def match_snippet(
-        self,
-        candidate_image_path: str,
-        approved_vectors_dir: str,
-        threshold: float = 0.88,
-        candidate_text: Optional[str] = None,
-        db_path: Optional[str] = None,
-    ) -> Tuple[bool, Optional[str]]:
+    def match_snippet(self, candidate_image_path: str, approved_vectors_dir: str, threshold: float = 0.88) -> Tuple[bool, Optional[str]]:
         """Compare a candidate snippet against a database of accepted vectors.
-
+        
         Args:
             candidate_image_path: Path to the newly cropped visual snippet.
             approved_vectors_dir: Directory containing accepted numpy vector files (.npy).
             threshold: Cosine similarity threshold for matching (default 0.88).
-            candidate_text: Optional text string associated with the candidate.
-            db_path: Optional path to SQLite database.
 
         Returns:
             (is_match, matched_vector_path)
@@ -226,52 +89,75 @@ class VisualMemoryEngine:
         candidate_vector = self.extract_vector(candidate_image_path)
         if candidate_vector is None:
             return False, None
-        return self._match_vector_with_text(
-            candidate_vector=candidate_vector,
-            vectors_dir=approved_vectors_dir,
-            threshold=threshold,
-            candidate_text=candidate_text,
-            db_path=db_path,
-        )
+
+        vectors_path = Path(approved_vectors_dir)
+        if not vectors_path.exists():
+            return False, None
+
+        best_score = -1.0
+        best_match_path = None
+
+        # Scan through all accepted .npy vector files
+        for f in vectors_path.glob("*.npy"):
+            try:
+                approved_vector = np.load(str(f))
+                score = self.compute_similarity(candidate_vector, approved_vector)
+                logger.debug(f"VisualMemoryEngine: Comparing against {f.name} - Similarity: {score:.4f}")
+                if score > best_score:
+                    best_score = score
+                    best_match_path = str(f)
+            except Exception as e:
+                logger.error(f"VisualMemoryEngine: Error loading approved vector {f.name}: {e}")
+
+        logger.info(f"VisualMemoryEngine: Best match score: {best_score:.4f} (Threshold: {threshold})")
+        if best_score >= threshold:
+            return True, best_match_path
+
+        return False, None
 
     def match_snippet_global(
         self,
-        candidate_image_path_or_vector,
-        global_vectors_dir: str,
-        threshold: float = 0.90,
-        candidate_text: Optional[str] = None,
-        db_path: Optional[str] = None,
+        candidate_vector: np.ndarray,
+        approved_vectors_dir: str,
+        threshold: float = 0.88
     ) -> Tuple[bool, Optional[str]]:
-        """Compare a candidate snippet against the global database of accepted vectors.
-
+        """Compare a pre-extracted candidate feature vector against a database of accepted vectors.
+        
         Args:
-            candidate_image_path_or_vector: Either a path string to an image file,
-                or a pre-computed numpy ndarray feature vector.
-            global_vectors_dir: Directory containing approved .npy vector files.
-            threshold: Cosine similarity threshold (default 0.90).
-            candidate_text: Optional text string associated with the candidate.
-            db_path: Optional path to SQLite database.
+            candidate_vector: Pre-extracted feature vector.
+            approved_vectors_dir: Directory containing accepted numpy vector files (.npy).
+            threshold: Cosine similarity threshold for matching (default 0.88).
 
         Returns:
             (is_match, matched_vector_path)
         """
-        if isinstance(candidate_image_path_or_vector, np.ndarray):
-            return self._match_vector_with_text(
-                candidate_vector=candidate_image_path_or_vector,
-                vectors_dir=global_vectors_dir,
-                threshold=threshold,
-                candidate_text=candidate_text,
-                db_path=db_path,
-            )
-        else:
-            return self.match_snippet(
-                candidate_image_path=candidate_image_path_or_vector,
-                approved_vectors_dir=global_vectors_dir,
-                threshold=threshold,
-                candidate_text=candidate_text,
-                db_path=db_path,
-            )
+        if candidate_vector is None:
+            return False, None
 
+        vectors_path = Path(approved_vectors_dir)
+        if not vectors_path.exists():
+            return False, None
+
+        best_score = -1.0
+        best_match_path = None
+
+        # Scan through all accepted .npy vector files
+        for f in vectors_path.glob("*.npy"):
+            try:
+                approved_vector = np.load(str(f))
+                score = self.compute_similarity(candidate_vector, approved_vector)
+                logger.debug(f"VisualMemoryEngine: Comparing against {f.name} - Similarity: {score:.4f}")
+                if score > best_score:
+                    best_score = score
+                    best_match_path = str(f)
+            except Exception as e:
+                logger.error(f"VisualMemoryEngine: Error loading approved vector {f.name}: {e}")
+
+        logger.info(f"VisualMemoryEngine: Best match score: {best_score:.4f} (Threshold: {threshold})")
+        if best_score >= threshold:
+            return True, best_match_path
+
+        return False, None
 
     def _extract_fallback_hash(self, image_path: str) -> Optional[np.ndarray]:
         """A simple structural/perceptual fallback if PyTorch is missing."""

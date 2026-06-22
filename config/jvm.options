@@ -4,9 +4,9 @@
 # Heap Size: 64GB (leaves 192GB for OS cache and other processes)
 # ============================================================================
 
-# Heap Size (64GB total - optimal for 256GB RAM system)
--Xms64g
--Xmx64g
+# Heap Size (2GB total - optimized for local 16GB RAM system)
+-Xms2g
+-Xmx2g
 
 # GC Configuration - G1GC optimized for low latency
 -XX:+UseG1GC
@@ -14,13 +14,13 @@
 -XX:InitiatingHeapOccupancyPercent=30
 
 # GC Logging - Windows paths
--Xlog:gc*,gc+age=trace,safepoint:file=D:/DocumentSearch/logs/opensearch/gc.log:utctime,pid,tags:filecount=10,filesize=100m
+-Xlog:gc*,gc+age=trace,safepoint:file=C:/Users/DELL/Music/DocumentSearch/runtime/logs/opensearch/gc.log:utctime,pid,tags:filecount=10,filesize=100m
 
 # JVM Settings - Windows paths
--Djava.io.tmpdir=D:/DocumentSearch/temp/opensearch
+-Djava.io.tmpdir=C:/Users/DELL/Music/DocumentSearch/runtime/temp/opensearch
 -XX:+HeapDumpOnOutOfMemoryError
--XX:HeapDumpPath=D:/DocumentSearch/logs/opensearch/heapdump.hprof
--XX:ErrorFile=D:/DocumentSearch/logs/opensearch/hs_err_pid%p.log
+-XX:HeapDumpPath=C:/Users/DELL/Music/DocumentSearch/runtime/logs/opensearch/heapdump.hprof
+-XX:ErrorFile=C:/Users/DELL/Music/DocumentSearch/runtime/logs/opensearch/hs_err_pid%p.log
 
 # Performance
 -XX:+AlwaysPreTouch

@@ -103,7 +103,8 @@ def test_database_reviews(setup_dirs):
         snippet_path=str(review_dir / "crop_sig.png"),
         bounding_box=[100, 100, 200, 200],
         accuracy_impact=15.0,
-        reviewer_role="Contract Auditor"
+        reviewer_role="Contract Auditor",
+        deficit_category="handwritten"
     )
     
     create_snippet_review(
@@ -114,7 +115,8 @@ def test_database_reviews(setup_dirs):
         snippet_path=str(review_dir / "crop_stamp.png"),
         bounding_box=[300, 300, 400, 400],
         accuracy_impact=10.0,
-        reviewer_role="Operations Manager"
+        reviewer_role="Operations Manager",
+        deficit_category="text_anomaly"
     )
 
     # 3. Fetch pending reviews and assert counts
@@ -127,7 +129,13 @@ def test_database_reviews(setup_dirs):
     dummy_vec_path = str(memory_dir / f"{rev1}.npy")
     np.save(dummy_vec_path, np.ones(512) / np.sqrt(512)) # L2-normalized dummy vector
     
-    update_snippet_review_status(rev1, status="accepted", feature_vector_path=dummy_vec_path)
+    update_snippet_review_status(
+        rev1,
+        status="accepted",
+        feature_vector_path=dummy_vec_path,
+        transcription_text="John Doe",
+        review_reason="Verified signature"
+    )
 
     # 5. Fetch SQLite file_state row and verify re-computed Enhanced Accuracy and status
     db_file = working_root / "audit" / "audit.db"
@@ -141,7 +149,13 @@ def test_database_reviews(setup_dirs):
     assert row["approval_status"] == "Pending Review"
 
     # 6. Accept the stamp element (boost accuracy by another 10.0%)
-    update_snippet_review_status(rev2, status="accepted", feature_vector_path=None)
+    update_snippet_review_status(
+        rev2,
+        status="accepted",
+        feature_vector_path=None,
+        transcription_text="Approved Stamp",
+        review_reason="Verified stamp"
+    )
     
     row_final = conn.execute("SELECT enhanced_accuracy, approval_status FROM file_state WHERE file_key = ?", (file_key,)).fetchone()
     # 85% + 10% stamp boost = 95% final enhanced accuracy

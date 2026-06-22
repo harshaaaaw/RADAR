@@ -204,7 +204,15 @@ class ContentExtractor:
 
         # Check if content is too short
         if len(content.strip()) < min_text_length:
-            page_count = metadata.get('page_count', 0)
+            # If it's a PDF and text is too short, we should run OCR (faint/hidden OCR layers etc.)
+            if mime_type == 'application/pdf':
+                return True
+                
+            page_count = metadata.get('page_count') or metadata.get('xmptpg_npages') or metadata.get('meta_page_count') or 0
+            try:
+                page_count = int(page_count)
+            except (ValueError, TypeError):
+                page_count = 0
             if page_count and page_count > 0:
                 return True
 
