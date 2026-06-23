@@ -10,6 +10,9 @@ import os
 from pathlib import Path
 from datetime import datetime
 
+# Prevent Intel OpenMP duplicate runtime conflicts / crashes
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
 # Force UTF-8 output for Windows console
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')

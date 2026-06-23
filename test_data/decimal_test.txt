@@ -1,0 +1,2 @@
+The price is 1234.56 dollars.
+Another value is 100.0.

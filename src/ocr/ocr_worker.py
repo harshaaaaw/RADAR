@@ -597,6 +597,7 @@ class OCRWorker:
                 ("4. High Res", lambda b: self.preprocessor.resize_image(b, 2.0), "3"),   # Upscale 2x
                 ("5. Table/Column", lambda b: self.preprocessor.apply_clahe_only(b), "4"), # Column layout
                 ("6. Color BG Remove", lambda b: self.preprocessor.remove_color_background_aggressive(b), "6"),  # Colored bg
+                ("6b. Sauvola Binarize", lambda b: self.preprocessor.apply_sauvola_binarization(b), "6"),       # Sauvola binarization
                 ("7. Inverted/Dark", lambda b: self.preprocessor.invert_and_enhance(b), "6"), # Light-on-dark
                 ("8. Raw Fallback", lambda b: b, "12"),                                 # Sparse+OSD
                 # --- Rotation Fallbacks (Brute Force) ---

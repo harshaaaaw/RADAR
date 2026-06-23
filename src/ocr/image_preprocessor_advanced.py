@@ -262,6 +262,10 @@ class ImagePreprocessor:
             if has_color:
                 img = self._remove_color_background(img)
             
+            # Step 7.5: Normalize background
+            if self.preprocessing_config.get('normalize_background', True):
+                img = self._normalize_background(img)
+            
             # Step 8: Denoise
             if config.apply_denoise:
                 img = self._apply_denoise(img, config.denoise_strength)
@@ -297,9 +301,12 @@ class ImagePreprocessor:
             
             # Step 16: Binarization (optional)
             if self.preprocessing_config.get('binarize', False):
-                if len(img.shape) == 3:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                _, img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                if self.preprocessing_config.get('use_sauvola', True):
+                    img = self._apply_sauvola_threshold(img)
+                else:
+                    if len(img.shape) == 3:
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                    _, img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             
             # Encode back to bytes
             _, buffer = cv2.imencode('.png', img)
@@ -1032,3 +1039,104 @@ class ImagePreprocessor:
         except Exception as e:
             logger.warning(f"Text repair failed: {e}")
             return img
+
+    def _normalize_background(self, img: np.ndarray) -> np.ndarray:
+        """
+        Normalize non-uniform, colorful, gradient, or patterned backgrounds.
+        This uses morphological dilation followed by median blur to estimate
+        the background illumination, and then divides the original image by
+        the background to flatten it to clean white.
+        """
+        try:
+            is_color = len(img.shape) == 3
+            
+            if is_color:
+                # Process in L*a*b* space so we only normalize luminance (L channel)
+                lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+                l, a, b = cv2.split(lab)
+                
+                # Estimate background for luminance
+                dilated = cv2.dilate(l, np.ones((7, 7), np.uint8))
+                bg = cv2.medianBlur(dilated, 21)
+                
+                # Normalize luminance: divide original by estimated background
+                normalized_l = cv2.divide(l, bg, scale=255)
+                
+                # Merge back
+                normalized_lab = cv2.merge((normalized_l, a, b))
+                normalized_img = cv2.cvtColor(normalized_lab, cv2.COLOR_LAB2BGR)
+                return normalized_img
+            else:
+                dilated = cv2.dilate(img, np.ones((7, 7), np.uint8))
+                bg = cv2.medianBlur(dilated, 21)
+                normalized_img = cv2.divide(img, bg, scale=255)
+                return normalized_img
+                
+        except Exception as e:
+            logger.warning(f"Background normalization failed: {e}")
+            return img
+
+    def _apply_sauvola_threshold(self, img: np.ndarray, window_size: int = 25, k: float = 0.2, R: float = 128.0) -> np.ndarray:
+        """
+        Apply Sauvola local adaptive thresholding for high quality binarization
+        especially under non-uniform illumination or background noise.
+        """
+        try:
+            # Ensure grayscale
+            if len(img.shape) == 3:
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = img
+                
+            # Convert to float for precise division / math
+            gray_f = gray.astype(np.float32)
+            
+            # Calculate local mean using boxFilter (O(1) time complexity)
+            mean = cv2.boxFilter(gray_f, cv2.CV_32F, (window_size, window_size))
+            
+            # Calculate local mean of square
+            sq_mean = cv2.boxFilter(gray_f**2, cv2.CV_32F, (window_size, window_size))
+            
+            # Local standard deviation
+            variance = sq_mean - (mean**2)
+            # Ensure no negative variance due to floating-point rounding precision
+            variance = np.clip(variance, 0, None)
+            std = np.sqrt(variance)
+            
+            # Sauvola threshold formula
+            thresh = mean * (1.0 + k * (std / R - 1.0))
+            
+            # Binarize
+            binary = np.where(gray_f > thresh, 255, 0).astype(np.uint8)
+            return binary
+            
+        except Exception as e:
+            logger.warning(f"Sauvola thresholding failed: {e}")
+            # Fallback to standard Otsu's thresholding
+            if len(img.shape) == 3:
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = img
+            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            return binary
+
+    def apply_sauvola_binarization(self, image_data: bytes) -> bytes:
+        """Helper to apply morphological background normalization followed by Sauvola thresholding."""
+        try:
+            nparr = np.frombuffer(image_data, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is None:
+                return image_data
+            
+            # 1. Normalize background
+            normalized = self._normalize_background(img)
+            
+            # 2. Apply Sauvola thresholding
+            binary = self._apply_sauvola_threshold(normalized)
+            
+            _, buffer = cv2.imencode('.png', binary)
+            return buffer.tobytes()
+        except Exception as e:
+            logger.warning(f"Sauvola binarization helper failed: {e}")
+            return image_data
+

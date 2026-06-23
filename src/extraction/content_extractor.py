@@ -64,6 +64,7 @@ class ContentExtractor:
         
         # Check if OCR is needed
         needs_ocr = self._should_run_ocr(main_content, metadata)
+        is_corrupted = self._is_text_corrupted(main_content)
         
         # Process embedded files
         embedded_files = []
@@ -77,7 +78,7 @@ class ContentExtractor:
         result = {
             'file_path': file_path,
             'file_hash': file_hash,
-            'main_content': main_content,
+            'main_content': "" if is_corrupted else main_content,
             'content_hash': content_hash,
             'metadata': metadata,
             'needs_ocr': needs_ocr,
@@ -185,6 +186,113 @@ class ContentExtractor:
         
         return hashlib.sha256(content.encode('utf-8')).hexdigest()
     
+    def _is_text_corrupted(self, content: str) -> bool:
+        """
+        Check if the extracted digital text layer is corrupted.
+        Checks for:
+        1. OCR noise characters inside words (e.g. SUSA.~A).
+        2. High ratio of invalid words (not present in dictionary / SpaCy).
+        """
+        try:
+            check_config = self.ocr_detection.get('corruption_check', {})
+            if not check_config.get('enabled', True):
+                return False
+                
+            if not content or len(content.strip()) < 10:
+                return False
+                
+            # Tokenize into words, allowing dots to capture words like 'SUSA.~A'
+            words = re.findall(r'\b[a-zA-Z0-9~|_\\[\]{}.]+\b', content)
+            if not words:
+                return False
+                
+            noise_threshold = check_config.get('noise_threshold', 0.01)
+            dict_threshold = check_config.get('dictionary_threshold', 0.35)
+            noise_pattern_str = check_config.get('noise_pattern', "[~|_\\[\\]{}]")
+            
+            # 1. Noise check: token must contain at least one alphanumeric character and a noise character
+            noise_regex = re.compile(rf'(?=.*[a-zA-Z0-9]){noise_pattern_str}')
+            
+            noise_count = 0
+            alpha_words = []
+            
+            for w in words:
+                if noise_regex.search(w):
+                    noise_count += 1
+                # Filter alphabetic-only words for dictionary check
+                clean_word = re.sub(r'[^a-zA-Z]', '', w)
+                if len(clean_word) >= 3:
+                    alpha_words.append(clean_word.lower())
+            
+            noise_ratio = noise_count / len(words)
+            if noise_ratio > noise_threshold:
+                logger.info(f"Text flagged as corrupted by noise heuristic: {noise_ratio:.3f} > {noise_threshold}")
+                return True
+                
+            # 2. Dictionary check
+            if alpha_words and dict_threshold > 0:
+                nlp_vocab = None
+                if hasattr(self, '_nlp_model') and self._nlp_model is not None:
+                    nlp_vocab = self._nlp_model.vocab
+                else:
+                    try:
+                        import spacy
+                        try:
+                            from core.config_manager import get_config_manager
+                            raw = getattr(get_config_manager(), 'raw_config', {}) or {}
+                            model_name = raw.get('nlp', {}).get('model_path', 'en_core_web_md')
+                        except Exception:
+                            model_name = 'en_core_web_md'
+                            
+                        try:
+                            self._nlp_model = spacy.load(model_name)
+                        except Exception:
+                            self._nlp_model = spacy.load('en_core_web_sm')
+                        nlp_vocab = self._nlp_model.vocab
+                    except Exception as e:
+                        logger.debug(f"SpaCy vocab check unavailable: {e}")
+                
+                # Fallback to NLTK if SpaCy is not available
+                nltk_vocab = None
+                if nlp_vocab is None:
+                    if hasattr(self, '_nltk_vocab') and self._nltk_vocab is not None:
+                        nltk_vocab = self._nltk_vocab
+                    else:
+                        try:
+                            import nltk
+                            nltk.download('words', quiet=True)
+                            from nltk.corpus import words as nltk_words
+                            self._nltk_vocab = set(w.lower() for w in nltk_words.words())
+                            nltk_vocab = self._nltk_vocab
+                        except Exception as e:
+                            logger.debug(f"NLTK words corpus check unavailable: {e}")
+                
+                unknown_count = 0
+                has_vocab = False
+                
+                if nlp_vocab is not None:
+                    has_vocab = True
+                    for w in alpha_words:
+                        if w not in nlp_vocab:
+                            unknown_count += 1
+                elif nltk_vocab is not None:
+                    has_vocab = True
+                    for w in alpha_words:
+                        if w not in nltk_vocab:
+                            unknown_count += 1
+                            
+                if has_vocab and len(alpha_words) > 0:
+                    unknown_ratio = unknown_count / len(alpha_words)
+                    if unknown_ratio > dict_threshold:
+                        logger.info(f"Text flagged as corrupted by dictionary heuristic: {unknown_ratio:.3f} unknown words > {dict_threshold}")
+                        return True
+                    
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Corrupt text check failed: {e}")
+            return False
+
     def _should_run_ocr(self, content: str, metadata: Dict[str, Any]) -> bool:
         """Determine if OCR should be run on this file"""
         min_text_length = self.ocr_detection.get('min_text_length', 100)
@@ -207,6 +315,10 @@ class ContentExtractor:
             page_count = metadata.get('page_count', 0)
             if page_count and page_count > 0:
                 return True
+
+        # Check if text layer is corrupted (triggers OCR if True)
+        if self._is_text_corrupted(content):
+            return True
 
         # Check if it's an image file
         if self.ocr_detection.get('detect_by_mime_type', True):

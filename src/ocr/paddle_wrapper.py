@@ -13,6 +13,7 @@ from core.config_manager import get_config
 logger = get_logger("ocr.paddle")
 
 # Suppress excessive PaddleOCR / PaddlePaddle logging at import time
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 os.environ.setdefault("PADDLE_CPP_LOG_LEVEL", "3")   # ERROR only
 os.environ.setdefault("FLAGS_logtostderr", "0")       # Don't flood stderr
 os.environ.setdefault("FLAGS_use_onednn", "0")        # Disable OneDNN to bypass pir::ArrayAttribute bug on Windows CPU
@@ -110,6 +111,8 @@ class PaddleWrapper:
                     use_angle_cls=self.cls,
                     lang=lang,
                     enable_mkldnn=False,
+                    use_doc_orientation_classify=False,
+                    use_doc_unwarping=False,
                 )
                 logger.info(f"PaddleOCR engine for lang='{lang}' ready (modern PaddleX interface).")
             except ValueError as ve:

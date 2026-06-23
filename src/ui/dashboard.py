@@ -926,7 +926,7 @@ def extract_snippet_manually(text: str, query: str, max_length: int = 180) -> st
         # Strip internal commas and periods for digits
         normalized_term = re.sub(r'(?<=\d)[,.]+(?=\d)', '', term)
         if normalized_term.isdigit():
-            pattern = re.compile(r'(?<!\d)' + r'[.,]?'.join(list(normalized_term)) + r'(?!\d)', re.IGNORECASE)
+            pattern = re.compile(r'(?<!\d)' + r'[.,]?'.join(list(normalized_term)), re.IGNORECASE)
         else:
             escaped = re.escape(term)
             start_boundary = r'\b' if term[0].isalnum() else ''
@@ -960,7 +960,7 @@ def extract_snippet_manually(text: str, query: str, max_length: int = 180) -> st
             # Strip internal commas and periods for digits
             normalized_term = re.sub(r'(?<=\d)[,.]+(?=\d)', '', term)
             if normalized_term.isdigit():
-                pattern = re.compile(r'(?<!\d)' + r'[.,]?'.join(list(normalized_term)) + r'(?!\d)', re.IGNORECASE)
+                pattern = re.compile(r'(?<!\d)' + r'[.,]?'.join(list(normalized_term)), re.IGNORECASE)
             else:
                 escaped = re.escape(term)
                 start_boundary = r'\b' if term[0].isalnum() else ''
@@ -970,6 +970,51 @@ def extract_snippet_manually(text: str, query: str, max_length: int = 180) -> st
             snippet = pattern.sub(lambda m: f"**{m.group()}**", snippet)
     
     return snippet
+
+
+def adjust_numeric_highlights(snippet: str, query: str) -> str:
+    """
+    Adjust highlight markers (**) in the snippet so that for numeric queries,
+    only the matched prefix of a number is highlighted, rather than the entire number.
+    """
+    if not snippet or not query:
+        return snippet
+        
+    query_lower = query.lower()
+    query_terms = query_lower.split()
+    
+    # We look for numeric query terms of length >= 3
+    numeric_terms = []
+    for term in query_terms:
+        # Strip internal punctuation
+        normalized = re.sub(r'(?<=\d)[,.]+(?=\d)', '', term)
+        if normalized.isdigit() and len(normalized) >= 3:
+            numeric_terms.append(normalized)
+            
+    if not numeric_terms:
+        return snippet
+
+    # Find all **...** highlights in the snippet
+    def replace_highlight(match):
+        inner_text = match.group(1)
+        # Check if the highlighted text looks like a number (contains digits)
+        digit_only = re.sub(r'[.,]', '', inner_text)
+        if digit_only.isdigit():
+            # Try to match any of our numeric query terms as a prefix
+            for num_term in numeric_terms:
+                # Create a regex to match the prefix in the actual inner_text
+                # (allowing optional separators)
+                pattern = re.compile(r'^' + r'[.,]?'.join(list(num_term)), re.IGNORECASE)
+                m = pattern.search(inner_text)
+                if m:
+                    matched_part = m.group(0)
+                    remaining_part = inner_text[m.end():]
+                    return f"**{matched_part}**{remaining_part}"
+        return match.group(0)
+
+    # Use regex to find and replace **...** blocks
+    adjusted_snippet = re.sub(r'\*\*(.*?)\*\*', replace_highlight, snippet)
+    return adjusted_snippet
 
 
 def _generate_ocr_variants(query: str) -> List[str]:
@@ -1522,6 +1567,21 @@ def perform_search(os_client: OpenSearchClient, query: str, limit: int = 20, fil
                 }
             })
         
+        # --- TIER 6: Wildcard Prefix Matching for Numeric Terms (5 boost) ---
+        for term in normalized_query.split():
+            clean_term = re.sub(r'(?<=\d)[,.]+(?=\d)', '', term)
+            if clean_term.isdigit() and len(clean_term) >= 3:
+                # Map standard content fields without boosts for query_string
+                raw_fields = [f.split('^')[0] for f in content_fields]
+                bool_clauses["should"].append({
+                    "query_string": {
+                        "query": f"{clean_term}*",
+                        "fields": raw_fields,
+                        "analyze_wildcard": True,
+                        "boost": 5
+                    }
+                })
+        
         # Add OCR variant searches for common OCR misreads
         for variant in ocr_variants:
             if variant != normalized_query and variant != normalized_query.lower():
@@ -1960,6 +2020,8 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
             # Snippet with highlighting
             snippet = result.get("snippet", "")
             if snippet:
+                # Adjust numeric highlights to only wrap matched prefix
+                snippet = adjust_numeric_highlights(snippet, query)
                 # Convert ** markers to HTML highlight
                 snippet_escaped = _esc(snippet)
                 snippet_html = re.sub(r'\*\*(.+?)\*\*', r'<span class="highlight">\1</span>', snippet_escaped)
