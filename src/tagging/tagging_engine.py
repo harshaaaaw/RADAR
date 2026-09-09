@@ -987,6 +987,7 @@ class TaggingEngine:
 
         for bu, keywords in _BU_KEYWORD_MAP.items():
             score = 0.0
+            short_score = 0.0
             for kw in keywords:
                 kw_clean = kw.strip().lower()
                 if not kw_clean:
@@ -996,7 +997,13 @@ class TaggingEngine:
                 if re.search(pattern, text_lower):
                     # Weight by keyword specificity (longer phrases = more specific)
                     specificity_weight = 1.0 + (len(kw_clean.split()) - 1) * 0.5
-                    score += specificity_weight
+                    if len(kw_clean) <= 3:
+                        # Short acronyms (cre, fx) also occur as OCR noise fragments:
+                        # count them only with a longer same-BU signal beside them.
+                        short_score += specificity_weight
+                    else:
+                        score += specificity_weight
+            score += short_score if score > 0 else 0.0
             if score > 0:
                 bu_scores[bu] = score
 

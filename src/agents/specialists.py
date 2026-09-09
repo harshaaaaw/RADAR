@@ -73,6 +73,41 @@ def _repair_prose(answer: str) -> tuple[str, dict]:
         return answer, {}
 
 
+def _first_sentence(text: str) -> str:
+    """First clean sentence of a chunk, for the deterministic opener."""
+    try:
+        t = _PAGE_HEADER_RE.sub(" ", text or "")
+        t = " ".join(t.split())
+        for sent in _SENT_SPLIT_RE.split(t):
+            s = sent.strip()
+            if 25 <= len(s) <= 300:
+                return s
+        return ""
+    except (ValueError, TypeError, AttributeError):
+        return ""
+
+
+def _fallback_prose(query: str, context: str, answer: str) -> str:
+    """Deterministic opener when the model returns title plus table only.
+
+    Quotes the top chunk's first sentence, never invents figures. When no
+    chunk yields a sentence but a table exists, explains the table instead
+    of leaving the answer bare. Never raises.
+    """
+    try:
+        pieces, _ = _context_pieces(context)
+        if pieces:
+            name, text = pieces[0]
+            sent = _first_sentence(text)
+            if sent:
+                return f"{sent} [{name}]\n\nThe table below breaks it down by file."
+        if "|" in (answer or ""):
+            return "The table below breaks down what each matching file is about."
+        return ""
+    except (ValueError, TypeError, AttributeError):
+        return ""
+
+
 def _question_type(query: str) -> str:
     words = set(re.findall(r"[a-z]+", (query or "").lower()))
     phrases = (query or "").lower()
@@ -257,7 +292,8 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
         "(no 'resulting in', 'netting to', 'which gives'). Start with one "
         "or two sentences that directly answer the question in plain words, "
         "then list the supporting figures as a short markdown table "
-        "with columns item, amount, source. "
+        "with columns item, amount, source. Open with the sentences themselves, "
+        "never with a bold heading or title line. "
         "Never state page numbers, only source numbers like [1]. "
         "If the sources lack the answer, say what is missing."
     )
@@ -285,6 +321,11 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
         if ext:
             result = {"text": ext, "tokens": len(ext.split()), "cost_usd": 0.0,
                       "mock": True, "extractive": True, "agent": "answer"}
+    final = str(result.get("text", "") or "")
+    if final and not _has_prose(final):
+        fb = _fallback_prose(query, context, final)
+        if fb:
+            result["text"] = fb + "\n\n" + final
     result["latency_ms"] = int((time.time() - start) * 1000)
     return result
 

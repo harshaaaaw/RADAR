@@ -3,8 +3,16 @@ import sys
 
 sys.path.insert(0, "src")
 
-from agents.specialists import _fix_digit_spacing, _has_prose, _question_type, extractive_answer, verifier_agent
-from tagging.tagging_engine import _cosine
+from agents.specialists import (
+       _fallback_prose,
+       _fix_digit_spacing,
+       _has_prose,
+       _question_type,
+       extractive_answer,
+       verifier_agent,
+)
+from tagging.tagging_engine import TaggingEngine, _cosine
+from ui.ask_tab import render_cited_answer
 
 CTX = ("Source [1] invoice_10256.pdf p1: Invoice 10256 from Acme Supplies totals $2,480 due March 3, 2026.\n\n"
        "Source [2] memo.pdf p2: The Statement of Account summarizes all open balances for the quarter.\n\n"
@@ -54,5 +62,31 @@ v = verifier_agent("Balance due $10,967.40 [a.pdf]", good_src, "total?")
 assert not v["ok"] and "amount" in v["reason"], v
 v = verifier_agent("Invoice 10256 is ready. Year 2026. [a.pdf]", good_src, "invoice?")
 assert v["ok"], v
+
+# render: bold stars become <b>, markdown tables become <table>, chips survive
+html = render_cited_answer(
+    "**Documents relate to**\n\n| Item | Source |\n|---|---|\n| Partial settlement | [1] |",
+    [{"file_name": "f79.pdf"}],
+)
+assert "<b>Documents relate to</b>" in html, html
+assert "<table>" in html and "<th>Item</th>" in html, html
+assert "cite-chip" in html and "**" not in html, html
+
+# fallback prose: table-only answers always gain an honest opener
+ctx1 = ("Source [1] f79.pdf p1: Your company may be entitled to recover funds "
+        "from an approved partial settlement of $60 million.")
+tbl = "**Documents relate to**\n\n| Item |\n|---|\n| Partial settlement |"
+assert not _has_prose(tbl)
+fb = _fallback_prose("what are all the docs related to?", ctx1, tbl)
+assert _has_prose(fb) and "table below" in fb, fb
+assert _fallback_prose("q?", "", tbl) == (
+    "The table below breaks down what each matching file is about.")
+
+# tagging: lone short acronyms (OCR noise like 'cre') never win a BU alone
+eng = TaggingEngine()
+noise = "sr estates cre qr " + ("garbage token " * 50)
+assert eng._classify_business_unit(noise) == "GECC HQ", noise
+real = "the commercial lease and tenant mortgage portfolio, CRE segment"
+assert eng._classify_business_unit(real) == "Real Estate", real
 
 print("SEMANTIC_CHECKS_OK")

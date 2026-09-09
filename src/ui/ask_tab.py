@@ -76,6 +76,62 @@ def _chip_sources(answer: str, chunks: list) -> tuple[list[int], list[int]]:
     return used, bad
 
 
+_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+_TABLE_SEP_RE = re.compile(r"^[\s|:\-]+$")
+
+
+def _md_inline(text: str) -> str:
+    """Bold only. Input is already HTML-escaped except cite chips."""
+    try:
+        return _BOLD_RE.sub(r"<b>\1</b>", text or "")
+    except (ValueError, TypeError, AttributeError):
+        return text
+
+
+def _split_md_row(line: str) -> list[str]:
+    try:
+        return [c.strip() for c in (line or "").strip().strip("|").split("|")]
+    except (ValueError, TypeError, AttributeError):
+        return []
+
+
+def _md_to_html(text: str) -> str:
+    """Tiny markdown subset: tables, bold, line breaks. Never raises."""
+    try:
+        lines = (text or "").split("\n")
+        out: list[str] = []
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            nxt = lines[i + 1] if i + 1 < len(lines) else ""
+            if ("|" in line and "|" in nxt and "-" in nxt
+                    and _TABLE_SEP_RE.match(nxt or "")):
+                header = _split_md_row(line)
+                rows: list[list[str]] = []
+                j = i + 2
+                while j < len(lines) and "|" in lines[j] and lines[j].strip():
+                    rows.append(_split_md_row(lines[j]))
+                    j += 1
+                cells_h = "".join(f"<th>{_md_inline(c)}</th>" for c in header)
+                body = "".join(
+                    "<tr>" + "".join(f"<td>{_md_inline(c)}</td>" for c in r) + "</tr>"
+                    for r in rows
+                )
+                out.append(f"<table><tr>{cells_h}</tr>{body}</table>")
+                i = j
+                continue
+            out.append(_md_inline(line))
+            i += 1
+        html = "<br>".join(out)
+        html = re.sub(r"(<br>\s*){3,}", "<br><br>", html)
+        html = re.sub(r"^(<br>\s*)+", "", html)
+        html = re.sub(r"(<br>\s*)+$", "", html)
+        html = html.replace("<br><table>", "<table>")
+        return html
+    except (ValueError, TypeError, AttributeError):
+        return text
+
+
 def render_cited_answer(answer: str, chunks: list) -> str:
     """Answer HTML with [N] markers as hover chips bound to chunk metadata.
 
@@ -98,7 +154,8 @@ def render_cited_answer(answer: str, chunks: list) -> str:
                         f'class="cite-chip">[{n}]</sup>')
             return ""
 
-        return re.sub(r"\[(\d+)\]", _chip, safe)
+        with_chips = re.sub(r"\[(\d+)\]", _chip, safe)
+        return _md_to_html(with_chips)
     except (ValueError, TypeError, AttributeError):
         import html as _html2
 
