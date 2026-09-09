@@ -60,7 +60,7 @@ paths:
   checkpoints_dir: "{app_root}\\runtime\\checkpoints"
   metrics_dir: "{app_root}\\runtime\\metrics"
   backup_dir: "{app_root}\\runtime\\backup"
-  app_root: "E:\\DocumentSearch_v2"
+  app_root: "./RADAR_data"
 
 
 
@@ -218,7 +218,7 @@ ocr:
   max_pages_per_pdf: 100
   
   # Update these paths after installation
-  poppler_path: "C:\\Users\\hp212560601\\Downloads\\poppler-current\\poppler-26.02.0\\Library\\bin"
+  poppler_path: ""
   
   paddle:
     # GPU vs CPU is determined by the installed package (not a config flag):

@@ -343,8 +343,10 @@ class ConfigurationManager:
             self.raw_config = yaml.safe_load(f)
             
         # Dynamically interpolate {app_root} placeholder in all path settings
-        app_root = self.raw_config.get('paths', {}).get('app_root', '')
+        # RADAR_APP_ROOT env var overrides the config file (portable live runs)
+        app_root = os.getenv("RADAR_APP_ROOT", "") or self.raw_config.get('paths', {}).get('app_root', '')
         if app_root:
+            self.raw_config.setdefault('paths', {})['app_root'] = app_root
             self.raw_config = self._interpolate_dict(self.raw_config, app_root)
     
     def _load_environment_variables(self) -> None:
