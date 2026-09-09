@@ -13,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from agents.graph import AgentGraph  # noqa: E402
+from agents.guardrails import mask_pii  # noqa: E402
 
 
 class AskRequest(BaseModel):
@@ -82,6 +83,10 @@ def ask(req: AskRequest) -> dict[str, Any]:
             reason = str(node.get("reason", ""))
             break
     answer_out = "" if verdict == "BLOCK" else str(result.get("answer", ""))
+    try:
+        answer_out = mask_pii(answer_out)
+    except (ValueError, TypeError, AttributeError):
+        pass
     tokens = int(result.get("tokens", 0))
     cost = float(result.get("cost_usd", 0.0))
     confidence = float(result.get("confidence", 0.0))
