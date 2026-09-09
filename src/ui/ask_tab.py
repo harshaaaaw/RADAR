@@ -95,7 +95,7 @@ def render_cited_answer(answer: str, chunks: list) -> str:
                 ch = chunks[n - 1] or {}
                 label = _page_label(ch if isinstance(ch, dict) else {})
                 return (f'<sup title="{_html.escape(label)}" '
-                        f'style="color:#1f77b4;font-weight:700;">[{n}]</sup>')
+                        f'class="cite-chip">[{n}]</sup>')
             return ""
 
         return re.sub(r"\[(\d+)\]", _chip, safe)

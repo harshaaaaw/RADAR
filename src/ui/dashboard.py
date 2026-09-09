@@ -789,6 +789,32 @@ def render_dashboard() -> None:
             color: #6b7280;
             margin-bottom: 0.5rem;
         }
+        /* Answer typography: tables, lists, citation chips in one palette */
+        .result-snippet table {
+            border-collapse: collapse;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+        .result-snippet th, .result-snippet td {
+            border: 1px solid #e5e7eb;
+            padding: 0.35rem 0.6rem;
+            text-align: left;
+        }
+        .result-snippet th {
+            background: #f0f2f6;
+            font-weight: 600;
+        }
+        .result-snippet ul, .result-snippet ol {
+            margin: 0.4rem 0;
+            padding-left: 1.4rem;
+        }
+        .result-snippet li {
+            margin-bottom: 0.2rem;
+        }
+        .cite-chip {
+            color: #1f77b4;
+            font-weight: 700;
+        }
         /* Answer vs files separation + calmer controls */
         hr {
             margin: 1.5rem 0;
