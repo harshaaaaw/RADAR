@@ -697,7 +697,7 @@ def _render_snippet_card(
                     key=f"open_card_page_{review_id}_{idx}",
                     on_click=_open_source_document,
                     args=(file_path, page_num),
-                    use_container_width=True,
+                    width='stretch',
                     help=f"Open document to page {page_num}"
                 )
             else:
@@ -711,9 +711,9 @@ def _render_snippet_card(
             try:
                 if compact:
                     thumb = _build_uniform_thumbnail(Image.open(str(snippet_path)), width=480, height=160)
-                    st.image(thumb, use_container_width=True)
+                    st.image(thumb, width='stretch')
                 else:
-                    st.image(str(snippet_path), use_container_width=True)
+                    st.image(str(snippet_path), width='stretch')
             except Exception as img_err:
                 st.error(f"Could not load snippet image: {img_err}")
         else:
@@ -763,7 +763,7 @@ def _render_snippet_card(
                 if st.button(
                     "❌ Reject",
                     key=f"btn_reject_accepted_{review_id}_{idx}",
-                    use_container_width=True,
+                    width='stretch',
                 ):
                     update_snippet_review_status(
                         review_id,
@@ -806,7 +806,7 @@ def _render_snippet_card(
             "✅ Accept & Learn",
             key=f"btn_acc_{review_id}",
             type="primary",
-            use_container_width=True,
+            width='stretch',
         ):
             st.session_state["active_review_editor"] = review_id
             st.rerun()
@@ -821,7 +821,7 @@ def _render_snippet_card(
         if st.button(
             "❌ Reject",
             key=f"btn_rej_{review_id}",
-            use_container_width=True,
+            width='stretch',
         ):
             try:
                 update_snippet_review_status(
@@ -855,7 +855,7 @@ def _render_snippet_card(
         if snippet_path.exists():
             try:
                 preview_img = Image.open(str(snippet_path))
-                st.image(_build_uniform_thumbnail(preview_img, width=640, height=220), use_container_width=True)
+                st.image(_build_uniform_thumbnail(preview_img, width=640, height=220), width='stretch')
             except Exception:
                 pass
 
@@ -869,7 +869,7 @@ def _render_snippet_card(
 
         submit_col, cancel_col = st.columns(2)
         with submit_col:
-            if st.button("Submit & Accept", key=f"submit_accept_{review_id}", type="primary", use_container_width=True):
+            if st.button("Submit & Accept", key=f"submit_accept_{review_id}", type="primary", width='stretch'):
                 if not final_reason or final_reason == "Custom reason...":
                     st.warning("⚠️ Please select or enter an acceptance reason before approving.")
                     return
@@ -1001,7 +1001,7 @@ def _render_snippet_card(
                 except Exception as e:
                     st.error(f"Failed to accept snippet: {e}")
         with cancel_col:
-            if st.button("Close", key=f"cancel_accept_{review_id}", use_container_width=True):
+            if st.button("Close", key=f"cancel_accept_{review_id}", width='stretch'):
                 st.session_state.pop("active_review_editor", None)
                 st.rerun()
 
@@ -1610,7 +1610,7 @@ def _render_snippet_review_tab_inner(config: Any) -> None:
                         "Accepted": info.get("accepted", 0),
                         "Rejected": info.get("rejected", 0),
                     })
-                st.dataframe(rows, use_container_width=True, hide_index=True)
+                st.dataframe(rows, width='stretch', hide_index=True)
 
             # Purge controls
             st.markdown("---")

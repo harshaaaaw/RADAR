@@ -702,7 +702,7 @@ def render_extraction_detail(queue_stats: Dict[str, Any]) -> None:
         })
     
     df = pd.DataFrame(df_data)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width='stretch', hide_index=True)
 
 
 def render_dashboard() -> None:
@@ -1172,7 +1172,7 @@ def render_search_tab(config: Any, os_client: Optional[OpenSearchClient]) -> Non
             key="search_input"
         )
     with col2:
-        search_button = st.button("\U0001F50D Search", use_container_width=True)
+        search_button = st.button("\U0001F50D Search", width='stretch')
     
     # --- Multi-select filter panel ---
     filters: Dict[str, List[str]] = {}
@@ -2400,7 +2400,7 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
                 else:
                     file_opened = False
                     file_open_error = None
-                    if st.button("📂 Open File", key=f"open_{i}", use_container_width=True):
+                    if st.button("📂 Open File", key=f"open_{i}", width='stretch'):
                         try:
                             open_file_with_default_app(result["filepath"])
                             file_opened = True
@@ -2418,7 +2418,7 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
                     file_name=f"{Path(result['filename']).stem}_extracted_text.txt",
                     mime="text/plain",
                     key=f"download_{i}",
-                    use_container_width=True,
+                    width='stretch',
                 )
 
             with btn_pdf:
@@ -2430,7 +2430,7 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
                         file_name=f"{Path(result['filename']).stem}_report.pdf",
                         mime="application/pdf",
                         key=f"pdf_report_{i}",
-                        use_container_width=True,
+                        width='stretch',
                     )
                 except Exception as _pdf_err:
                     st.caption(f"PDF unavailable: {_pdf_err}")
@@ -2565,7 +2565,7 @@ def render_recent_documents(os_client: OpenSearchClient, limit: int = 15,
                 btn_open_r, btn_text_r, btn_pdf_r = st.columns(3)
 
                 with btn_open_r:
-                    if st.button("📂 Open File", key=f"recent_{i}", use_container_width=True):
+                    if st.button("📂 Open File", key=f"recent_{i}", width='stretch'):
                         try:
                             open_file_with_default_app(doc["filepath"])
                             recent_file_opened = True
@@ -2580,7 +2580,7 @@ def render_recent_documents(os_client: OpenSearchClient, limit: int = 15,
                         file_name=f"{Path(doc['filename']).stem}_extracted_text.txt",
                         mime="text/plain",
                         key=f"download_recent_{i}",
-                        use_container_width=True,
+                        width='stretch',
                     )
 
                 with btn_pdf_r:
@@ -2592,7 +2592,7 @@ def render_recent_documents(os_client: OpenSearchClient, limit: int = 15,
                             file_name=f"{Path(doc['filename']).stem}_report.pdf",
                             mime="application/pdf",
                             key=f"pdf_report_recent_{i}",
-                            use_container_width=True,
+                            width='stretch',
                         )
                     except Exception as _pdf_err:
                         st.caption(f"PDF unavailable: {_pdf_err}")
@@ -2654,7 +2654,7 @@ def render_live_audit_tab(config: Any) -> None:
 
     action_col1, action_col2 = st.columns([1, 1])
     with action_col1:
-        if st.button("Apply Metadata Source", key="apply_metadata_source", use_container_width=True):
+        if st.button("Apply Metadata Source", key="apply_metadata_source", width='stretch'):
             try:
                 selected_path = ""
                 if uploaded_metadata is not None:
@@ -2683,7 +2683,7 @@ def render_live_audit_tab(config: Any) -> None:
                 st.error(f"Could not apply metadata source: {exc}")
 
     with action_col2:
-        if st.button("Clear Metadata Source", key="clear_metadata_source", use_container_width=True):
+        if st.button("Clear Metadata Source", key="clear_metadata_source", width='stretch'):
             clear_active_metadata_source()
             st.success("Metadata source cleared. spacy-only mode is active.")
             st.rerun()
@@ -2761,7 +2761,7 @@ def render_live_audit_tab(config: Any) -> None:
                     "Error": item.get("error_message", ""),
                 }
             )
-        st.dataframe(pd.DataFrame(event_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(event_rows), width='stretch', hide_index=True)
     else:
         st.info("No audit events found for the current filter.")
 
@@ -2777,7 +2777,7 @@ def render_live_audit_tab(config: Any) -> None:
     col_gen, col_dl = st.columns([1, 1])
     
     with col_gen:
-        if st.button("\U0001F504 Generate Excel Report", key="audit_generate_btn", use_container_width=True):
+        if st.button("\U0001F504 Generate Excel Report", key="audit_generate_btn", width='stretch'):
             try:
                 with st.spinner("Generating report..."):
                     output_dir = str(Path(config.paths.working_root) / "audit")
@@ -2803,7 +2803,7 @@ def render_live_audit_tab(config: Any) -> None:
                     data=xlsx_bytes,
                     file_name=export_path.name,
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
+                    width='stretch',
                     key="audit_download_final"
                 )
             except Exception as e:
@@ -2837,7 +2837,7 @@ def render_monitoring_tab(config: Any, queue_manager: Any) -> None:
             disabled=not auto_refresh
         )
     with col3:
-        if st.button("\U0001F504 Refresh Now", use_container_width=True):
+        if st.button("\U0001F504 Refresh Now", width='stretch'):
             # Hard-clear caches to avoid stale last-known-good values after resets.
             clear_all_caches()
             
@@ -3268,7 +3268,7 @@ def render_monitoring_tab(config: Any, queue_manager: Any) -> None:
                                     "Path": f.get('file_path', '')
                                 })
                             df = pd.DataFrame(rows)
-                            st.dataframe(df, use_container_width=True)
+                            st.dataframe(df, width='stretch')
                         else:
                             st.info("No indexed files available yet")
                     except Exception as e:
@@ -3300,7 +3300,7 @@ def render_monitoring_tab(config: Any, queue_manager: Any) -> None:
                 }
                 for error_type, count in sorted(failures.items(), key=lambda x: x[1], reverse=True)
             ])
-            st.dataframe(failure_df, use_container_width=True, hide_index=True)
+            st.dataframe(failure_df, width='stretch', hide_index=True)
             
             # Show actual failed files
             st.markdown("---")
@@ -3322,7 +3322,7 @@ def render_monitoring_tab(config: Any, queue_manager: Any) -> None:
                         }
                         for f in failed_files
                     ])
-                    st.dataframe(failed_df, use_container_width=True, hide_index=True)
+                    st.dataframe(failed_df, width='stretch', hide_index=True)
                 else:
                     st.info("No failed files to display")
             except Exception as e:
@@ -3359,7 +3359,7 @@ def render_monitoring_tab(config: Any, queue_manager: Any) -> None:
         
         if status_data:
             status_df = pd.DataFrame(status_data)
-            st.dataframe(status_df, use_container_width=True, hide_index=True)
+            st.dataframe(status_df, width='stretch', hide_index=True)
         else:
             st.info("No queue status data available")
         
@@ -3382,7 +3382,7 @@ def render_monitoring_tab(config: Any, queue_manager: Any) -> None:
                     }
                     for f in ocr_pending
                 ])
-                st.dataframe(ocr_df, use_container_width=True, hide_index=True)
+                st.dataframe(ocr_df, width='stretch', hide_index=True)
                 st.caption(f"Showing {len(ocr_pending)} of pending OCR files")
             else:
                 st.success("No files pending OCR processing")
@@ -3417,7 +3417,7 @@ def render_monitoring_tab(config: Any, queue_manager: Any) -> None:
             """,
             unsafe_allow_html=True,
         )
-        if st.button("📦 Generate Parquet Export", use_container_width=True, key="gen_parquet_export"):
+        if st.button("📦 Generate Parquet Export", width='stretch', key="gen_parquet_export"):
             try:
                 parquet_bytes = _generate_parquet_export()
                 if parquet_bytes:
@@ -3436,14 +3436,14 @@ def render_monitoring_tab(config: Any, queue_manager: Any) -> None:
                 file_name=f"radar_export_{_ts}.parquet",
                 mime="application/octet-stream",
                 key="dl_parquet_export",
-                use_container_width=True,
+                width='stretch',
             )
 
     # --- Column 2: System Report (PDF) ---
     with col_report:
         st.subheader("📊 System Report")
         st.caption("Download a PDF snapshot of the current pipeline metrics, storage statistics, and taxonomy tags.")
-        if st.button("🖨 Generate System Report", use_container_width=True, key="gen_sys_report"):
+        if st.button("🖨 Generate System Report", width='stretch', key="gen_sys_report"):
             try:
                 from ui.pdf_report import generate_system_report
                 _q_stats = get_cached_queue_stats()
@@ -3462,7 +3462,7 @@ def render_monitoring_tab(config: Any, queue_manager: Any) -> None:
                 file_name=f"system_report_{_ts}.pdf",
                 mime="application/pdf",
                 key="dl_sys_report",
-                use_container_width=True,
+                width='stretch',
             )
 
 
