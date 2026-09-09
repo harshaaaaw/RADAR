@@ -378,7 +378,7 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
     if history:
         prior = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history[-4:])
     user = f"History:\n{prior}\n\nContext:\n{context[:16000]}\n\nQuestion: {mask_pii(query)}"
-    result = call_llm(system, user, agent="answer", api_key=api_key)
+    result = call_llm(system, user, agent="answer", force_offline=(api_key == ""))
     text = str(result.get("text", "") or "")
     norm = re.sub(r"【(\d+)[^】]*】", r"[\1]", text)
     norm = re.sub(r"\[(\d+)[†‡*]+\]", r"[\1]", norm)

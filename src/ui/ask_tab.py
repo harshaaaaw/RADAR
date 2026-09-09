@@ -293,7 +293,7 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
             used, _ = _chip_sources(answer, chunks)
             shown = [chunks[n - 1] for n in used if 1 <= n <= len(chunks)] or list(chunks[:1])
             others = len(chunks) - len(shown)
-            items = []
+            cards = []
             for n, ch in zip(used or [1], shown):
                 chd = ch if isinstance(ch, dict) else {}
                 disp = _display_name(str(chd.get("file_name", "unknown")))
@@ -305,32 +305,26 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
                 except (ValueError, TypeError):
                     pass
                 times = len(re.findall(rf"\[{n}\]", answer or ""))
-                meta = " · ".join(t for t in (str(chd.get("category", "") or ""),
-                                              str(chd.get("department", "") or "")) if t and t != "Unclassified")
-                if times:
-                    meta = (meta + " · " if meta else "") + f"cited {times}×"
+                tags = [t for t in (str(chd.get("category", "") or ""),
+                                    str(chd.get("department", "") or "")) if t and t != "Unclassified"]
+                cite = f"cited {times}×" if times else ""
+                tag_html = "".join(
+                    f'<span class="src-tag">{_html.escape(t)}</span>' for t in tags)
+                if cite:
+                    tag_html += f'<span class="src-tag src-tag-cite">{_html.escape(cite)}</span>'
                 quote = clean_snippet(str(chd.get("text", "")), limit=180)
-                items.append(
-                    f'<li><span class="ev-file">[{n}] {_html.escape(disp)}{_html.escape(page_bit)}</span>'
-                    + (f' <span class="ev-cite">{_html.escape(meta)}</span>' if meta else "")
-                    + (f'<details class="ev-quote"><summary>Exact words from the file</summary>'
-                       f'<p>“{_html.escape(quote)}”</p></details>' if quote else "")
-                    + "</li>"
+                cards.append(
+                    f'<div class="src-card">'
+                    f'<span class="src-num">{n}</span>'
+                    f'<div class="src-main">'
+                    f'<div class="src-name">{_html.escape(disp)}{_html.escape(page_bit)}</div>'
+                    + (f'<div class="src-tags">{tag_html}</div>' if tag_html else "")
+                    + (f'<details class="ev-quote"><summary><span class="ev-ico">“</span>Exact words from the file</summary>'
+                       f'<p>{_html.escape(quote)}</p></details>' if quote else "")
+                    + '</div></div>'
                 )
             parts.append('<div class="answer-evidence-label">Sources</div>'
-                         f'<ol class="answer-evidence">{"".join(items)}</ol>')
-            pills = []
-            for n in used or [1]:
-                if 1 <= n <= len(chunks):
-                    ch = chunks[n - 1] if isinstance(chunks[n - 1], dict) else {}
-                    nm = _display_name(str(ch.get("file_name", "unknown")), 28)
-                    times = len(re.findall(rf"\[{n}\]", answer or ""))
-                    tag = f" ×{times}" if times > 1 else ""
-                    pills.append(
-                        f'<span class="src-pill" title="{_html.escape(_page_label(ch))}">'
-                        f'[{n}] {_html.escape(nm)}{_html.escape(tag)}</span>')
-            if pills:
-                parts.insert(3, f'<div class="src-strip">{"".join(pills)}</div>')
+                         f'<div class="answer-sources">{"".join(cards)}</div>')
         steps = _build_steps(verdict.get("trace", []))
         if steps:
             lis = "".join(f"<li>{_html.escape(s)}</li>" for s in steps)

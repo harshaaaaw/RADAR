@@ -891,38 +891,85 @@ def render_dashboard() -> None:
             letter-spacing: 0.06em;
             color: #666666;
             margin-top: 1.1rem;
+            margin-bottom: 0.5rem;
         }
-        .answer-evidence {
-            margin: 0.4rem 0;
-            padding-left: 1.3rem;
-            font-size: 0.88rem;
-            color: #333333;
+        .answer-sources {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
         }
-        .answer-evidence li {
-            margin-bottom: 0.45rem;
+        .src-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            padding: 0.6rem 0.75rem;
+            background: #ffffff;
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 12px;
         }
-        .ev-file {
+        .src-num {
+            flex: 0 0 auto;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 999px;
+            background: #0f766e;
+            color: #ffffff;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .src-main {
+            min-width: 0;
+        }
+        .src-name {
+            font-size: 0.92rem;
             font-weight: 500;
             color: #0d0d0d;
         }
-        .ev-cite, .ev-about {
-            color: #666666;
-            font-size: 0.85rem;
+        .src-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            margin-top: 0.25rem;
+        }
+        .src-tag {
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: #555555;
+            background: #f5f5f5;
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: 999px;
+            padding: 0.05rem 0.5rem;
+        }
+        .src-tag-cite {
+            color: #0b7a55;
+            background: #d4fae8;
+            border-color: rgba(11,122,85,0.18);
         }
         .ev-quote {
-            margin-top: 0.25rem;
+            margin-top: 0.3rem;
         }
         .ev-quote summary {
             cursor: pointer;
             color: #0f766e;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .ev-ico {
+            font-size: 1rem;
+            line-height: 1;
+            color: #0f766e;
         }
         .ev-quote p {
             background: #fafafa;
             border: 1px solid rgba(0,0,0,0.05);
             border-radius: 8px;
             padding: 0.6rem 0.75rem;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             color: #4b5563;
             line-height: 1.55;
             margin: 0.3rem 0 0;
@@ -931,22 +978,6 @@ def render_dashboard() -> None:
             font-size: 0.78rem;
             color: #888888;
             margin-top: 0.9rem;
-        }
-        .src-strip {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.35rem;
-            margin: 0.8rem 0 0;
-        }
-        .src-pill {
-            font-size: 0.78rem;
-            font-weight: 500;
-            color: #333333;
-            background: #ffffff;
-            border: 1px solid rgba(0,0,0,0.08);
-            border-radius: 999px;
-            padding: 0.15rem 0.7rem;
-            white-space: nowrap;
         }
         .how-built {
             margin-top: 0.9rem;
