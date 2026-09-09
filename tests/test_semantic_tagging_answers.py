@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, "src")
 
-from agents.specialists import _question_type, extractive_answer
+from agents.specialists import _fix_digit_spacing, _has_prose, _question_type, extractive_answer, verifier_agent
 from tagging.tagging_engine import _cosine
 
 CTX = ("Source [1] invoice_10256.pdf p1: Invoice 10256 from Acme Supplies totals $2,480 due March 3, 2026.\n\n"
@@ -40,12 +40,13 @@ assert _cosine([1.0, 0.0], [0.0, 1.0]) == 0.0
 assert _cosine([], [1.0]) == 0.0
 assert _cosine(None, None) == 0.0
 
-# money gate: invented totals block, stated figures pass, IDs never trip it
-from agents.specialists import verifier_agent, _fix_digit_spacing
-
+# digit spacing repair + prose detector
 assert _fix_digit_spacing("325 , 594.07 and 937 . 40") == "325,594.07 and 937.40"
 assert _fix_digit_spacing("no digits here") == "no digits here"
+assert not _has_prose("**Statement of Account**\n\n| Item | Amount |\n|---|---|\n| Balance | $937.40 |")
+assert _has_prose("Your balance is $937.40 according to the notice.")
 
+# money gate: invented totals block, stated figures pass, IDs never trip it
 good_src = [{"file_name": "a.pdf", "text": "Total balance due $937.40 for invoice 10256"}]
 v = verifier_agent("Balance due $937.40 [a.pdf]", good_src, "total?")
 assert v["ok"], v

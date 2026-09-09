@@ -38,6 +38,41 @@ _SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 _PAGE_HEADER_RE = re.compile(r"---\s*Page\s+\d+\s*---")
 
 
+def _has_prose(text: str) -> bool:
+    """True when the answer has plain sentences outside tables and headings."""
+    try:
+        for line in (text or "").splitlines():
+            s = line.strip()
+            if not s or set(s) <= set("|-: "):
+                continue
+            if "|" in s:
+                continue
+            core = re.sub(r"[*_#`>\[\]\d]", "", s).strip()
+            if len(core) >= 40:
+                return True
+        return False
+    except (ValueError, TypeError, AttributeError):
+        return True
+
+
+def _repair_prose(answer: str) -> tuple[str, dict]:
+    """One repair call: plain-words summary prepended, numbers unchanged."""
+    try:
+        rep = call_llm(
+            "Summarize the given answer in one or two plain sentences. "
+            "Use only the figures already stated. Add no new numbers, "
+            "no arithmetic, no tables.",
+            f"Answer:\n{(answer or '')[:4000]}",
+            agent="answer-repair",
+        )
+        summary = str(rep.get("text", "") or "").strip()
+        if summary and _has_prose(summary):
+            return summary + "\n\n" + (answer or ""), rep
+        return answer, {}
+    except (ValueError, TypeError, AttributeError):
+        return answer, {}
+
+
 def _question_type(query: str) -> str:
     words = set(re.findall(r"[a-z]+", (query or "").lower()))
     phrases = (query or "").lower()
@@ -236,6 +271,13 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
     norm = re.sub(r"\[(\d+)[†‡*]+\]", r"[\1]", norm)
     if not result.get("mock"):
         norm = _fix_digit_spacing(norm)
+        if not _has_prose(norm):
+            norm, rep = _repair_prose(norm)
+            try:
+                result["tokens"] = int(result.get("tokens", 0)) + int(rep.get("tokens", 0))
+                result["cost_usd"] = round(float(result.get("cost_usd", 0.0)) + float(rep.get("cost_usd", 0.0)), 6)
+            except (ValueError, TypeError):
+                pass
     if norm != text:
         result["text"] = norm
     if result.get("mock"):

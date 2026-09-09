@@ -63,7 +63,7 @@ def call_llm(system: str, user: str, agent: str = "answer", api_key: str = "", m
         tokens = len(prompt.split()) + len(text.split())
         cost = round(tokens / 1000 * COST_PER_1K_TOKENS, 6)
         return {"text": text, "tokens": tokens, "cost_usd": cost, "mock": False, "agent": agent}
-    except (ImportError, ValueError, RuntimeError, AttributeError) as exc:
+    except Exception as exc:  # never raise: rate limits and API errors fall back to extractive answers
         text = f"LLM fallback after error {exc}. {_mock_answer(prompt)}"
         tokens = len(prompt.split()) + len(text.split())
         return {"text": text, "tokens": tokens, "cost_usd": 0.0, "mock": True, "agent": agent}
