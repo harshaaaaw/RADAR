@@ -6,6 +6,7 @@ tokens and dollars counted per call for the cost meter in step 4.
 """
 from __future__ import annotations
 
+import os
 from typing import Any
 
 COST_PER_1K_TOKENS = 0.0004
@@ -19,12 +20,12 @@ def _settings() -> tuple[str, str]:
         config = get_config()
         llm = getattr(config, "llm", None)
         if llm is not None:
-            return str(getattr(llm, "api_key", "") or ""), str(
+            return str(getattr(llm, "api_key", "") or os.getenv("GROQ_API_KEY", "")), str(
                 getattr(llm, "model", "") or DEFAULT_MODEL
             )
     except Exception:  # nosec B110 - offline fallback to mock defaults is the contract
         pass
-    return "", DEFAULT_MODEL
+    return os.getenv("GROQ_API_KEY", ""), DEFAULT_MODEL
 
 
 def _mock_answer(prompt: str) -> str:
