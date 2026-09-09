@@ -196,7 +196,11 @@ def file_agent(file_name: str, search_fn: SearchFn) -> dict[str, Any]:
                 normed = _norm_text(r)
                 if normed:
                     r["text"] = normed
-        joined = "\n\n".join(f"[Page {r.get('page_number', 1)}] {r.get('text', '')}" for r in rows)
+        joined = "\n\n".join(
+            (f"[Page {r.get('page_number')}] {r.get('text', '')}"
+             if r.get("page_number") else f"{r.get('text', '')}")
+            for r in rows
+        )
         ms = int((time.time() - start) * 1000)
         return {"file": file_name, "chunks": rows, "full_text": joined[:12000], "latency_ms": ms}
     except (ValueError, TypeError, AttributeError) as exc:
@@ -214,7 +218,8 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
         "after each claim, like [1]. At most two numbers per sentence. "
         "Never cite a number not listed. Only state totals exactly as "
         "written in the sources; never add, subtract, or reconcile figures "
-        "yourself. If the sources lack the answer, say what is missing."
+        "yourself. Never state page numbers, only source numbers like [1]. "
+        "If the sources lack the answer, say what is missing."
     )
     prior = ""
     if history:

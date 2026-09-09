@@ -32,11 +32,14 @@ def source_to_chunk(source: dict[str, Any], score: float = 1.0) -> dict[str, Any
                 break
         row["text"] = text
         row.setdefault("file_name", row.get("filename", row.get("file", "unknown")))
-        row.setdefault("page_number", 1)
+        # No fake page numbers: if the source carries none, callers render
+        # the file name alone instead of inventing "p1".
+        if row.get("page_number") is None and row.get("page") is None:
+            row["page_number"] = None
         row["retrieval_score"] = score
         return row
     except (ValueError, TypeError, AttributeError):
-        return {"file_name": "unknown", "text": "", "page_number": 1, "retrieval_score": score}
+        return {"file_name": "unknown", "text": "", "page_number": None, "retrieval_score": score}
 
 
 _RRF_K = 60

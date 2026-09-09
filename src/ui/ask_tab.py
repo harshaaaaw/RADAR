@@ -50,6 +50,18 @@ def fmt_cost(cost: float) -> str:
         return "$0"
 
 
+def _page_label(ch: dict) -> str:
+    """File plus page only when the chunk carries a real page number."""
+    name = str(ch.get("file_name", "unknown"))
+    page = ch.get("page_number", ch.get("page"))
+    try:
+        if page is not None and int(page) > 0:
+            return f"{name} p{int(page)}"
+    except (ValueError, TypeError):
+        pass
+    return name
+
+
 def _chip_sources(answer: str, chunks: list) -> tuple[list[int], list[int]]:
     """Map [N] markers to chunks. Returns (used_numbers, out_of_range)."""
     used: list[int] = []
@@ -81,7 +93,7 @@ def render_cited_answer(answer: str, chunks: list) -> str:
             n = int(m.group(1))
             if 1 <= n <= len(chunks or []):
                 ch = chunks[n - 1] or {}
-                label = f"{ch.get('file_name', 'unknown')} p{ch.get('page_number', 1)}"
+                label = _page_label(ch if isinstance(ch, dict) else {})
                 return (f'<sup title="{_html.escape(label)}" '
                         f'style="color:#1f77b4;font-weight:700;">[{n}]</sup>')
             return ""
@@ -131,11 +143,12 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
             shown = [chunks[n - 1] for n in used if 1 <= n <= len(chunks)] or list(chunks[:1])
             items = []
             for n, ch in zip(used or [1], shown):
-                name = _html.escape(str(ch.get("file_name", "unknown")))
-                page = _html.escape(str(ch.get("page_number", 1)))
+                label = _page_label(ch if isinstance(ch, dict) else {})
+                times = len(re.findall(rf"\[{n}\]", answer or ""))
                 quote = clean_snippet(str(ch.get("text", "")))
                 items.append(
-                    f"<li>[{n}] {name} p{page}"
+                    f"<li>[{n}] {_html.escape(label)}"
+                    + (f" · cited {times} time(s) in the answer" if times else "")
                     + (f'<br><span style="color:#374151;">Quoted from the file: “{_html.escape(quote)}”</span>' if quote else "")
                     + "</li>"
                 )
