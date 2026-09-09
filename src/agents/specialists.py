@@ -261,6 +261,10 @@ def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
                     bigrams = set(zip(toks, toks[1:]))
                     if len(bigrams) < len(toks) - 1:  # duplicate bigram present
                         continue
+                # Reject OCR table-bleed: stray < > almost never appear in
+                # real prose but are common when a table row leaks into text.
+                if re.search(r"[<>]", sent):
+                    continue
                 # cap length: a blob above 180 chars is form-rug/letterhead,
                 # not an answer sentence. Keep it only if richly relevant.
                 if len(sent) < 25 or len(sent) > 180:

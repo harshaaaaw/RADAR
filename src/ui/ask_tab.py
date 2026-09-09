@@ -305,11 +305,12 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
                 except (ValueError, TypeError):
                     pass
                 times = len(re.findall(rf"\[{n}\]", answer or ""))
-                tags = [t for t in (str(chd.get("category", "") or ""),
-                                    str(chd.get("department", "") or "")) if t and t != "Unclassified"]
-                # Lead with meaning, not the scanner filename: title is the
-                # content signal (tags), filename drops to a muted second line.
-                title = " · ".join(tags) if tags else disp
+                cats = [t for t in [str(chd.get("category", "") or "")] if t and t != "Unclassified"]
+                deps = [t for t in [str(chd.get("department", "") or "")] if t and t != "Unclassified"]
+                tags = cats + deps
+                # Title is the content signal only (category). Department is
+                # metadata, shown as a pill, never jammed into the title.
+                title = " · ".join(cats) if cats else (" · ".join(deps) if deps else disp)
                 file_line = (f"{disp}{page_bit}" if tags
                              else (page_bit.strip(" ·") or ""))
                 if times == 1:
