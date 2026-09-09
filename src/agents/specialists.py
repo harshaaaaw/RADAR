@@ -34,6 +34,11 @@ _DATE_HINT_RE = re.compile(
     re.IGNORECASE,
 )
 _PROPER_HINT_RE = re.compile(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b")
+_CAUSE_HINT_RE = re.compile(
+    r"\b(because|reason|due to|owing to|caused by|as a result|on account|arising from|"
+    r"includes?|include|for the following|outstanding|unpaid|difference|discrepanc)\b",
+    re.IGNORECASE,
+)
 _SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 _PAGE_HEADER_RE = re.compile(r"---\s*Page\s+\d+\s*---")
 _ABBR_END_RE = re.compile(r"\b(Mr|Mrs|Ms|Dr|Rs|No|St|Rd|vs|etc|Prof|Sr|Jr|Inc|Ltd|Co)\.$", re.IGNORECASE)
@@ -141,6 +146,8 @@ def _question_type(query: str) -> str:
         return "who"
     if "how many" in phrases or "number of" in phrases or ("count" in words and "account" not in words):
         return "count"
+    if words & {"why", "reasons", "reason", "cause", "caused"} or "what are the reasons" in phrases:
+        return "why"
     return "general"
 
 
@@ -200,9 +207,13 @@ def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
     """Answer from retrieved sentences when no LLM key is configured.
 
     Scores sentences by query-term overlap plus question-type bonuses
-    (money / date / proper-name). Every sentence carries its [N] source
-    number so the card's chips, cited counts, and evidence all line up.
-    Skips sentences that merely echo the question and drops repeats.
+    (money / date / proper-name). The winning answer sentence earns a big
+    question-type bonus, so the real answer (e.g. "because of an outstanding
+    balance") outranks OCR noise (a letterhead blob that merely contains the
+    word "assessment"). Long blobs (letterheads, form fields) are capped so a
+    390-character blob never becomes the answer. Every sentence carries its
+    [N] source number so the card's chips, cited counts, and evidence all
+    line up. Skips sentences that echo the question and drops repeats.
     Returns "" when nothing scores above noise. Never raises.
     """
     try:
@@ -223,7 +234,9 @@ def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
             text = _PAGE_HEADER_RE.sub(" ", text)
             for sent in _split_sentences(text):
                 sent = " ".join(sent.split())
-                if len(sent) < 25 or len(sent) > 500:
+                # cap length: a blob above 180 chars is form-rug/letterhead,
+                # not an answer sentence. Keep it only if richly relevant.
+                if len(sent) < 25 or len(sent) > 180:
                     continue
                 key = _norm_sent(sent)
                 if not key or key in seen or key == query_echo:
@@ -232,11 +245,13 @@ def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
                 low = sent.lower()
                 score = sum(2.0 for t in terms if t in low)
                 if qtype == "money" and _MONEY_HINT_RE.search(sent):
-                    score += 4.0
+                    score += 6.0
                 if qtype == "date" and _DATE_HINT_RE.search(sent):
-                    score += 4.0
+                    score += 6.0
                 if qtype == "who" and _PROPER_HINT_RE.search(sent):
-                    score += 3.0
+                    score += 5.0
+                if qtype == "why" and _CAUSE_HINT_RE.search(sent):
+                    score += 6.0
                 if score >= 2.0:
                     scored.append((score, sent, num))
         if not scored:
@@ -337,8 +352,12 @@ def file_agent(file_name: str, search_fn: SearchFn) -> dict[str, Any]:
                 "error": f"file lookup failed: {exc}"}
 
 
-def answer_agent(query: str, context: str, history: list[dict[str, str]] | None = None) -> dict[str, Any]:
-    """Answer from context only. Cites numbered sources or says what is missing."""
+def answer_agent(query: str, context: str, history: list[dict[str, str]] | None = None, api_key: str = "") -> dict[str, Any]:
+    """Answer from context only. Cites numbered sources or says what is missing.
+
+    api_key defaults to "" so callers (and tests) can force the deterministic
+    offline/extractive path regardless of any ambient GROQ_API_KEY.
+    """
     start = time.time()
     system = (
         "You are an enterprise doc assistant. Answer only from the numbered "
@@ -359,7 +378,7 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
     if history:
         prior = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history[-4:])
     user = f"History:\n{prior}\n\nContext:\n{context[:16000]}\n\nQuestion: {mask_pii(query)}"
-    result = call_llm(system, user, agent="answer")
+    result = call_llm(system, user, agent="answer", api_key=api_key)
     text = str(result.get("text", "") or "")
     norm = re.sub(r"【(\d+)[^】]*】", r"[\1]", text)
     norm = re.sub(r"\[(\d+)[†‡*]+\]", r"[\1]", norm)

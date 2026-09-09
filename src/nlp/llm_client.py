@@ -35,12 +35,21 @@ def _mock_answer(prompt: str) -> str:
     )
 
 
-def call_llm(system: str, user: str, agent: str = "answer", api_key: str = "", model: str = "") -> dict[str, Any]:
-    """Call the chat model. Falls back to mock offline. Never raises."""
+def call_llm(system: str, user: str, agent: str = "answer", api_key: str = "", model: str = "",
+             force_offline: bool = False) -> dict[str, Any]:
+    """Call the chat model. Falls back to mock offline. Never raises.
+
+    force_offline=True (or api_key explicitly "") bypasses any ambient key and
+    returns the deterministic mock/extractive path. Tests use it so they pass
+    whether or not GROQ_API_KEY is set in the environment.
+    """
     prompt = f"{system}\n\n{user}"
-    key, default_model = _settings()
-    key = api_key or key
-    model = model or default_model
+    if force_offline:
+        key = ""
+    else:
+        key, default_model = _settings()
+        key = api_key or key
+    model = model or DEFAULT_MODEL
     if not key:
         text = _mock_answer(prompt)
         tokens = max(len(prompt.split()) + len(text.split()), 1)

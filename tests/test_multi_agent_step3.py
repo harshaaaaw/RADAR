@@ -63,7 +63,7 @@ def test_injection_line_dropped():
 
 
 def test_llm_mock_offline():
-    result = call_llm("sys", "hello world", agent="answer")
+    result = call_llm("sys", "hello world", agent="answer", force_offline=True)
     assert result["mock"] is True
     assert result["tokens"] > 0
     assert result["cost_usd"] >= 0
