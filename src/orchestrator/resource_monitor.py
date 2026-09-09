@@ -2,21 +2,32 @@
 Resource Monitor - System resource monitoring
 """
 
-import psutil
-from typing import Dict, Any
+from typing import Any, Dict
 
-from core.logging_manager import get_logger
+import psutil
+
 from core.config_manager import get_config
+from core.logging_manager import get_logger
 
 logger = get_logger("orchestrator.resources")
 
 
 class ResourceMonitor:
     """Monitors system resources (CPU, RAM, Disk)"""
-    
+
     def __init__(self):
         self.config = get_config()
         self.thresholds = self.config.orchestrator
+        self.llm_tokens = 0
+        self.llm_cost_usd = 0.0
+
+    def record_llm_usage(self, tokens: int, cost_usd: float) -> None:
+        """Add one answer's token spend. Called by the agent graph."""
+        try:
+            self.llm_tokens += int(tokens)
+            self.llm_cost_usd += float(cost_usd)
+        except (ValueError, TypeError):
+            pass
 
     def _effective_memory_thresholds(self, total_gb: float) -> Dict[str, float]:
         """Compute memory thresholds that work across both small and large RAM hosts.
@@ -42,26 +53,26 @@ class ResourceMonitor:
             'warning_gb': warning_gb,
             'critical_gb': critical_gb,
         }
-    
+
     def check_resources(self) -> Dict[str, Any]:
         """Check current resource usage"""
         cpu_percent = psutil.cpu_percent(interval=1)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage(self.config.paths.working_root)
-        
+
         # Check thresholds
         cpu_high = cpu_percent > self.thresholds.cpu['high_threshold_percent']
-        
+
         memory_gb = memory.used / (1024**3)
         total_gb = memory.total / (1024**3)
         mem_thresholds = self._effective_memory_thresholds(total_gb)
         memory_warning = memory_gb > mem_thresholds['warning_gb']
         memory_critical = memory_gb > mem_thresholds['critical_gb']
-        
+
         disk_gb_free = disk.free / (1024**3)
         disk_warning = disk_gb_free < self.thresholds.disk['warning_threshold_gb']
         disk_critical = disk_gb_free < self.thresholds.disk['critical_threshold_gb']
-        
+
         result = {
             'cpu_percent': cpu_percent,
             'cpu_high': cpu_high,
@@ -76,17 +87,19 @@ class ResourceMonitor:
             'disk_percent': disk.percent,
             'disk_warning': disk_warning,
             'disk_critical': disk_critical,
-            'critical': memory_critical or disk_critical
+            'critical': memory_critical or disk_critical,
+            'llm_tokens': self.llm_tokens,
+            'llm_cost_usd': round(self.llm_cost_usd, 6),
         }
-        
+
         # Log warnings
         if cpu_high:
             logger.warning(f"High CPU usage: {cpu_percent:.1f}%")
-        
+
         if memory_warning:
             logger.warning(f"High memory usage: {memory_gb:.1f}GB / {memory.total/(1024**3):.1f}GB ({memory.percent:.1f}%)")
-        
+
         if disk_warning:
             logger.warning(f"Low disk space: {disk_gb_free:.1f}GB free")
-        
+
         return result

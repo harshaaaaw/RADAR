@@ -864,3 +864,78 @@ def generate_system_report(queue_stats: Dict[str, Any],
     doc.build(elems)
     buf.seek(0)
     return buf.read()
+
+
+def generate_answer_report(verdict: Dict[str, Any], query: str) -> bytes:
+    """Generate an answer transcript PDF for one Ask verdict.
+
+    Args:
+        verdict: dict with verdict, answer, chunks, cost_usd, trace, reason.
+        query: the original question.
+
+    Returns:
+        Raw PDF bytes suitable for download buttons.
+    """
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=2 * cm, rightMargin=2 * cm,
+        topMargin=2 * cm, bottomMargin=2 * cm,
+    )
+    styles = _base_styles()
+    elems = []
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    elems += _header(styles, "RADAR Answer Report", f"Generated {generated_at}")
+    status = str(verdict.get("verdict", verdict.get("decision", "UNKNOWN")))
+    answer = str(verdict.get("answer", ""))
+    reason = str(verdict.get("reason", ""))
+    try:
+        cost = float(verdict.get("cost_usd", 0.0))
+    except (ValueError, TypeError):
+        cost = 0.0
+    try:
+        confidence = float(verdict.get("confidence", 0.0))
+    except (ValueError, TypeError):
+        confidence = 0.0
+    chunks = verdict.get("chunks", []) or []
+    trace = verdict.get("trace", []) or []
+    elems.append(_kv_table([
+        ("Question", query or "-"),
+        ("Verdict", status),
+        ("Answer", answer or "(blocked, needs human review)"),
+        ("Reason", reason or "-"),
+        ("Cost USD", f"{cost:.6f}"),
+        ("Confidence", f"{confidence:.2f}"),
+        ("Sources", str(len(chunks))),
+        ("Steps", str(len(trace))),
+    ]))
+    elems.append(Spacer(1, 0.4 * cm))
+    if chunks:
+        elems.append(Paragraph("Sources", styles["SectionHead"]))
+        for i, ch in enumerate(chunks[:10], 1):
+            name = escape(str(ch.get("file_name", "unknown")))
+            page = ch.get("page_number", 1)
+            snippet = escape(str(ch.get("text", ch.get("chunk_text", ""))[:300]))
+            elems.append(Paragraph(f"<b>{i}. {name}</b> p{page}", styles["Body"]))
+            if snippet.strip():
+                elems.append(Paragraph(snippet, styles["SmallGray"]))
+            elems.append(Spacer(1, 0.15 * cm))
+    if trace:
+        elems.append(Paragraph("Trace", styles["SectionHead"]))
+        for step in trace[:20]:
+            node = escape(str(step.get("node", "?")))
+            detail = escape(str(step.get("reason", step.get("route", step.get("count", "")))))
+            elems.append(Paragraph(f"{node}: {detail}", styles["SmallGray"]))
+    elems.append(Spacer(1, 0.3 * cm))
+    elems.append(Paragraph(
+        "Answers are grounded in retrieved sources. BLOCK verdicts need human review.",
+        styles["SmallGray"],
+    ))
+    elems.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey, spaceAfter=4))
+    elems.append(Paragraph(
+        "This report was generated automatically by RADAR Engine System Monitor.",
+        styles["SmallGray"],
+    ))
+    doc.build(elems)
+    buf.seek(0)
+    return buf.read()

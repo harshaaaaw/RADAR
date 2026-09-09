@@ -65,7 +65,7 @@ def chunk_document(payload: dict[str, Any], size: int = 0, overlap: int = 0) -> 
     if payload.get("status") == "failed" or not payload.get("text", "").strip():
         return []
     doc_id = payload.get("document_id", "doc")
-    prefix = hashlib.sha1(str(doc_id).encode()).hexdigest()[:12]
+    prefix = hashlib.sha1(str(doc_id).encode(), usedforsecurity=False).hexdigest()[:12]
     pages = payload.get("pages_data", [])
     shared = {
         "document_id": doc_id,

@@ -1,8 +1,26 @@
-"""Orchestration - Master coordinator and monitoring"""
+"""Orchestration - Master coordinator and monitoring.
 
-from .master_orchestrator import MasterOrchestrator
-from .health_monitor import HealthMonitor
-from .resource_monitor import ResourceMonitor
-from .checkpoint_manager import CheckpointManager
+Lazy loading (PEP 562): heavy coordinator modules import only on first
+use, so monitors load without worker dependencies installed.
+"""
+from typing import Any
 
 __all__ = ['MasterOrchestrator', 'HealthMonitor', 'ResourceMonitor', 'CheckpointManager']
+
+_LAZY = {
+    'MasterOrchestrator': '.master_orchestrator',
+    'HealthMonitor': '.health_monitor',
+    'ResourceMonitor': '.resource_monitor',
+    'CheckpointManager': '.checkpoint_manager',
+}
+
+
+def __getattr__(name: str) -> Any:
+    if name in _LAZY:
+        import importlib
+
+        module = importlib.import_module(_LAZY[name], __name__)
+        value = getattr(module, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

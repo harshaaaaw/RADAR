@@ -28,6 +28,15 @@ _STOPWORDS = {"what", "which", "how", "many", "tell", "about", "does", "have",
               "with", "from", "that", "this"}
 
 
+def _norm_text(row: dict[str, Any]) -> str:
+    """Return searchable text across prod (text) and API (chunk_text) shapes."""
+    for key in ("text", "chunk_text", "content", "main_content"):
+        val = row.get(key)
+        if isinstance(val, str) and val.strip():
+            return val
+    return ""
+
+
 def retrieval_agent(query: str, search_fn: SearchFn, filters: dict[str, Any] | None = None,
                     top_k: int = 5) -> dict[str, Any]:
     """Search then rerank. Returns chunks plus latency. Never raises."""
@@ -35,11 +44,29 @@ def retrieval_agent(query: str, search_fn: SearchFn, filters: dict[str, Any] | N
     try:
         safe = strip_doc_instructions(mask_pii(query))
         hits = search_fn(safe, filters or {}) or []
-        for i, hit in enumerate(hits):
-            hit = dict(hit)
-            hit.setdefault("retrieval_score", 1.0 - i * 0.01)
-            hits[i] = hit
-        top = rerank(safe, hits, top_k=top_k)
+        normed: list[dict[str, Any]] = []
+        for i, raw in enumerate(hits):
+            hit = dict(raw)
+            text = _norm_text(hit)
+            if text:
+                hit["text"] = text
+            if "retrieval_score" not in hit:
+                for key in ("score", "rerank_score", "_score"):
+                    if key in hit:
+                        try:
+                            hit["retrieval_score"] = float(hit[key])
+                        except (ValueError, TypeError):
+                            hit["retrieval_score"] = 1.0 - i * 0.01
+                        break
+                else:
+                    hit.setdefault("retrieval_score", 1.0 - i * 0.01)
+            if "file_name" not in hit:
+                for key in ("filename", "file", "source"):
+                    if hit.get(key):
+                        hit["file_name"] = hit[key]
+                        break
+            normed.append(hit)
+        top = rerank(safe, normed, top_k=top_k)
         return {"chunks": top, "latency_ms": int((time.time() - start) * 1000)}
     except (ValueError, TypeError, AttributeError) as exc:
         return {"chunks": [], "latency_ms": int((time.time() - start) * 1000),
@@ -107,7 +134,7 @@ def verifier_agent(answer: str, sources: list[dict[str, Any]], query: str = "") 
         return {"ok": False, "reason": "no sources, blocked", "latency_ms": ms()}
     if query:
         keys = {w.lower().rstrip("s") for w in re.findall(r"[A-Za-z]{4,}", query)} - _STOPWORDS
-        blob = " ".join(s.get("text", "") for s in sources).lower()
+        blob = " ".join(_norm_text(s) for s in sources).lower()
         if keys and not any(k in blob for k in keys):
             return {"ok": False, "reason": "no grounding for query terms, blocked", "latency_ms": ms()}
     cited = any(name and name in (answer or "") for name in names)

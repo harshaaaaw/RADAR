@@ -808,20 +808,37 @@ def render_dashboard() -> None:
     render_sidebar(config, os_client, queue_manager)
     
     # Main view selector (avoid rendering both views on every refresh)
-    view = st.radio("View", ["Search", "Live Audit", "Snippet Review", "System Monitor"], horizontal=True, key="main_view_selector")
-    
+    view = st.radio("View", ["Search", "Ask", "Live Audit", "Snippet Review", "System Monitor"], horizontal=True, key="main_view_selector")
+
     # Clear review tab state when navigating away to prevent stale pagination
     if view != "Snippet Review":
         st.session_state.pop("_review_tab_loaded", None)
 
     if view == "Search":
         render_search_tab(config, os_client)
+    elif view == "Ask":
+        _render_ask_safe(config, os_client)
     elif view == "Live Audit":
         render_live_audit_tab(config)
     elif view == "Snippet Review":
         _render_snippet_review_safe(config)
     else:
         render_monitoring_tab(config, queue_manager)
+
+
+def _render_ask_safe(config: Any, os_client: Any = None) -> None:
+    """Load and render the Ask tab with a loading state.
+
+    Heavy imports stay inside the branch so Search and Monitor renders
+    never pay for the agent team when the user never opens Ask.
+    """
+    try:
+        from ui.ask_tab import render_ask_tab
+    except Exception as import_err:
+        st.error(f"Failed to load Ask module: {import_err}")
+        return
+
+    render_ask_tab()
 
 
 def _render_snippet_review_safe(config: Any) -> None:

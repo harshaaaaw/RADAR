@@ -22,7 +22,7 @@ def _settings() -> tuple[str, str]:
             return str(getattr(llm, "api_key", "") or ""), str(
                 getattr(llm, "model", "") or DEFAULT_MODEL
             )
-    except Exception:
+    except Exception:  # nosec B110 - offline fallback to mock defaults is the contract
         pass
     return "", DEFAULT_MODEL
 
