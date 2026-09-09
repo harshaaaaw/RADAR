@@ -41,7 +41,10 @@ assert _cosine([], [1.0]) == 0.0
 assert _cosine(None, None) == 0.0
 
 # money gate: invented totals block, stated figures pass, IDs never trip it
-from agents.specialists import verifier_agent
+from agents.specialists import verifier_agent, _fix_digit_spacing
+
+assert _fix_digit_spacing("325 , 594.07 and 937 . 40") == "325,594.07 and 937.40"
+assert _fix_digit_spacing("no digits here") == "no digits here"
 
 good_src = [{"file_name": "a.pdf", "text": "Total balance due $937.40 for invoice 10256"}]
 v = verifier_agent("Balance due $937.40 [a.pdf]", good_src, "total?")

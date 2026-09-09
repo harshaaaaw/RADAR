@@ -233,6 +233,8 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
     text = str(result.get("text", "") or "")
     norm = re.sub(r"【(\d+)[^】]*】", r"[\1]", text)
     norm = re.sub(r"\[(\d+)[†‡*]+\]", r"[\1]", norm)
+    if not result.get("mock"):
+        norm = _fix_digit_spacing(norm)
     if norm != text:
         result["text"] = norm
     if result.get("mock"):
@@ -245,6 +247,20 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
 
 
 _MONEY_TOKEN_RE = re.compile(r"[$₹€£]?\s?\d[\d,]*\.?\d*")
+
+
+def _fix_digit_spacing(text: str) -> str:
+    """Repair OCR-mimicked spacing the model copies into answers.
+
+    Turns "325 , 594.07" back into "325,594.07" and "937 . 40" into
+    "937.40". Whitespace-only change, never touches words. Never raises.
+    """
+    try:
+        t = re.sub(r"(\d)\s*,\s*(\d)", r"\1,\2", text or "")
+        t = re.sub(r"(\d)\s*\.\s*(\d)", r"\1.\2", t)
+        return t
+    except (ValueError, TypeError, AttributeError):
+        return text
 
 
 def _money_like(raw: str) -> bool:
