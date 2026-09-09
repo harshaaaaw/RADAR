@@ -211,7 +211,7 @@ configure(search_fn=fake_api, ledger=None, monitor=None)
 
 # UI
 md = verdict_to_markdown({"verdict": "CERTIFY", "answer": "2480", "chunks": [], "cost_usd": 0.001, "trace": ["a", "b"]}, "q?")
-check("md.cert", "CERTIFY" in md and "0.001" in md and "q?" in md)
+check("md.cert", "CERTIFY" in md and "0.001" in md and "answer-kicker" in md and "q?" not in md)
 md2 = verdict_to_markdown({"verdict": "BLOCK", "answer": "", "chunks": [], "cost_usd": 0.0, "trace": [], "reason": "no grounding"}, "q?")
 check("md.block", "BLOCK" in md2 and "review" in md2)
 check("md.safe", "ERROR" in verdict_to_markdown(None, "q?"))  # type: ignore[arg-type]

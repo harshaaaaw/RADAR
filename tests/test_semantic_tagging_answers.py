@@ -18,10 +18,11 @@ CTX = ("Source [1] invoice_10256.pdf p1: Invoice 10256 from Acme Supplies totals
        "Source [2] memo.pdf p2: The Statement of Account summarizes all open balances for the quarter.\n\n"
        "ANALYTICS:\ntotal: 2")
 
-# extractive: money question finds the amount sentence with citation
+# extractive: money question finds the amount sentence with numbered citation
 a = extractive_answer("what is the total due?", CTX)
 assert "$2,480" in a, a
-assert "invoice_10256.pdf" in a, a
+assert "[1]" in a, a
+assert "invoice_10256.pdf" not in a, a
 assert "Mock answer" not in a, a
 
 # extractive: who question finds the company sentence
@@ -32,6 +33,15 @@ assert "Acme Supplies" in a2, a2
 a3 = extractive_answer("what is Statement of Account?", CTX)
 assert "Statement of Account" in a3, a3
 assert "Repository counts" not in a3, a3
+
+# extractive: abbreviations stay whole, query echoes and repeats drop out
+ctx_abbr = ("Source [1] assess.pdf p1: What are the reasons for the assessment? "
+            "The reasons include changes in taxable income. "
+            "The assessment lists additional tax payable of Rs. 45,000 due within thirty days of notice.")
+a_abbr = extractive_answer("What are the reasons for the assessment??", ctx_abbr)
+assert "Rs. 45,000" in a_abbr, a_abbr
+assert "Rs. [1]" not in a_abbr, a_abbr
+assert a_abbr.strip().lower() != "what are the reasons for the assessment? [1]", a_abbr
 
 # empty context never hallucinates
 assert extractive_answer("anything?", "") == ""

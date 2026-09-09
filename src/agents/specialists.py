@@ -36,6 +36,27 @@ _DATE_HINT_RE = re.compile(
 _PROPER_HINT_RE = re.compile(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b")
 _SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 _PAGE_HEADER_RE = re.compile(r"---\s*Page\s+\d+\s*---")
+_ABBR_END_RE = re.compile(r"\b(Mr|Mrs|Ms|Dr|Rs|No|St|Rd|vs|etc|Prof|Sr|Jr|Inc|Ltd|Co)\.$", re.IGNORECASE)
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Split into sentences without breaking on abbreviations like Rs./No./Dr.
+
+    Naive period-splitting turns "Rs. 45,000" into a dangling "Rs."
+    fragment; pieces ending in a known abbreviation rejoin the next one.
+    Never raises.
+    """
+    try:
+        raw = [s for s in _SENT_SPLIT_RE.split(text or "") if s and s.strip()]
+        out: list[str] = []
+        for piece in raw:
+            if out and _ABBR_END_RE.search(out[-1].strip()):
+                out[-1] = out[-1].rstrip() + " " + piece.strip()
+            else:
+                out.append(piece.strip())
+        return out
+    except (ValueError, TypeError, AttributeError):
+        return [text] if text else []
 
 
 def _has_prose(text: str) -> bool:
@@ -78,7 +99,7 @@ def _first_sentence(text: str) -> str:
     try:
         t = _PAGE_HEADER_RE.sub(" ", text or "")
         t = " ".join(t.split())
-        for sent in _SENT_SPLIT_RE.split(t):
+        for sent in _split_sentences(t):
             s = sent.strip()
             if 25 <= len(s) <= 300:
                 return s
@@ -97,10 +118,11 @@ def _fallback_prose(query: str, context: str, answer: str) -> str:
     try:
         pieces, _ = _context_pieces(context)
         if pieces:
-            name, text = pieces[0]
+            numbers = _piece_numbers(pieces)
+            _, name, text = pieces[0]
             sent = _first_sentence(text)
             if sent:
-                return f"{sent} [{name}]\n\nThe table below breaks it down by file."
+                return f"{sent} [{numbers.get(name, 1)}]\n\nThe table below breaks it down by file."
         if "|" in (answer or ""):
             return "The table below breaks down what each matching file is about."
         return ""
@@ -122,9 +144,14 @@ def _question_type(query: str) -> str:
     return "general"
 
 
-def _context_pieces(context: str) -> tuple[list[tuple[str, str]], str]:
-    """Split joined context into (file_name, text) pieces plus analytics text."""
-    pieces: list[tuple[str, str]] = []
+def _context_pieces(context: str) -> tuple[list[tuple[int | None, str, str]], str]:
+    """Split joined context into (source_number, file_name, text) plus analytics.
+
+    source_number is the [N] of its Source block, matching retrieval order
+    (and the card's chunk order). FULL DOCUMENT blocks carry None and
+    inherit their file's Source number downstream.
+    """
+    pieces: list[tuple[int | None, str, str]] = []
     analytics = ""
     for block in (context or "").split("\n\n"):
         block = block.strip()
@@ -133,42 +160,75 @@ def _context_pieces(context: str) -> tuple[list[tuple[str, str]], str]:
         if block.startswith("ANALYTICS:"):
             analytics = block[len("ANALYTICS:"):].strip()
             continue
-        m = re.match(r"Source \[\d+\]\s+(.*?)\s+p\S+:\s*(.*)", block, re.DOTALL)
+        m = re.match(r"Source \[(\d+)\]\s+(.*?)\s+p\S+:\s*(.*)", block, re.DOTALL)
         if not m:
-            m = re.match(r"Source \[\d+\]\s+([^:]+):\s*(.*)", block, re.DOTALL)
+            m = re.match(r"Source \[(\d+)\]\s+([^:]+):\s*(.*)", block, re.DOTALL)
         if m:
-            pieces.append((m.group(1).strip(), m.group(2).strip()))
+            pieces.append((int(m.group(1)), m.group(2).strip(), m.group(3).strip()))
             continue
         m2 = re.match(r"FULL DOCUMENT (.*?):\s*(.*)", block, re.DOTALL)
         if m2:
-            pieces.append((m2.group(1).strip(), m2.group(2).strip()))
+            pieces.append((None, m2.group(1).strip(), m2.group(2).strip()))
     return pieces, analytics
+
+
+def _piece_numbers(pieces: list[tuple[int | None, str, str]]) -> dict[str, int]:
+    """File name to source number, in first-seen order. Never raises."""
+    mapping: dict[str, int] = {}
+    try:
+        for num, name, _ in pieces:
+            if name and num is not None and name not in mapping:
+                mapping[name] = num
+        extra = (max(mapping.values()) + 1) if mapping else 1
+        for _, name, _ in pieces:
+            if name and name not in mapping:
+                mapping[name] = extra
+                extra += 1
+    except (ValueError, TypeError, AttributeError):
+        pass
+    return mapping
+
+
+def _norm_sent(text: str) -> str:
+    try:
+        return re.sub(r"[^a-z0-9 ]", "", (text or "").lower()).strip()
+    except (ValueError, TypeError, AttributeError):
+        return ""
 
 
 def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
     """Answer from retrieved sentences when no LLM key is configured.
 
     Scores sentences by query-term overlap plus question-type bonuses
-    (money / date / proper-name). Every sentence carries its file name so
-    the verifier citation check and the user both see provenance.
+    (money / date / proper-name). Every sentence carries its [N] source
+    number so the card's chips, cited counts, and evidence all line up.
+    Skips sentences that merely echo the question and drops repeats.
     Returns "" when nothing scores above noise. Never raises.
     """
     try:
         pieces, analytics = _context_pieces(context)
         if not pieces:
             return ""
+        numbers = _piece_numbers(pieces)
+        query_echo = _norm_sent(query)
         terms = [w.lower() for w in re.findall(r"[A-Za-z]{4,}", query or "")
                  if w.lower() not in _STOPWORDS]
         qtype = _question_type(query)
         if qtype == "count" and analytics and re.search(r"\d", analytics):
             return f"Repository counts: {analytics[:300]}"
-        scored: list[tuple[float, str, str]] = []
-        for name, text in pieces:
+        scored: list[tuple[float, str, int]] = []
+        seen: set[str] = set()
+        for _, name, text in pieces:
+            num = numbers.get(name, 1)
             text = _PAGE_HEADER_RE.sub(" ", text)
-            for sent in _SENT_SPLIT_RE.split(text):
+            for sent in _split_sentences(text):
                 sent = " ".join(sent.split())
                 if len(sent) < 25 or len(sent) > 500:
                     continue
+                key = _norm_sent(sent)
+                if not key or key in seen or key == query_echo:
+                    continue
+                seen.add(key)
                 low = sent.lower()
                 score = sum(2.0 for t in terms if t in low)
                 if qtype == "money" and _MONEY_HINT_RE.search(sent):
@@ -178,17 +238,15 @@ def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
                 if qtype == "who" and _PROPER_HINT_RE.search(sent):
                     score += 3.0
                 if score >= 2.0:
-                    scored.append((score, sent, name))
+                    scored.append((score, sent, num))
         if not scored:
             return ""
         scored.sort(key=lambda s: -s[0])
         picked: list[str] = []
-        used_files: set[str] = set()
-        for score, sent, name in scored:
+        for score, sent, num in scored:
             if len(picked) >= max_sentences:
                 break
-            picked.append(f"{sent} [{name}]")
-            used_files.add(name)
+            picked.append(f"{sent} [{num}]")
         return " ".join(picked)[:1200]
     except (ValueError, TypeError, AttributeError):
         return ""

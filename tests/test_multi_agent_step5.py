@@ -70,7 +70,8 @@ def test_markdown_shows_verdict_and_cost():
     md = verdict_to_markdown({"verdict": "CERTIFY", "answer": "2480",
                               "chunks": [], "cost_usd": 0.001,
                               "trace": ["a", "b"]}, "q?")
-    assert "CERTIFY" in md and "0.001" in md and "q?" in md
+    assert "CERTIFY" in md and "0.001" in md
+    assert "answer-kicker" in md and "q?" not in md
 
 
 def test_answer_pdf_builds():

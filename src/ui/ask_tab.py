@@ -10,7 +10,7 @@ import re
 from typing import Any
 
 _FRIENDLY_REASONS = {
-    "cited source": "The answer quotes the file below.",
+    "cited source": "",
     "numbered citations present": "",
     "sources present and query grounded": "The answer is drawn from the files listed below.",
     "answer service not configured, connect an LLM key for written answers":
@@ -78,6 +78,23 @@ def _chip_sources(answer: str, chunks: list) -> tuple[list[int], list[int]]:
 
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _TABLE_SEP_RE = re.compile(r"^[\s|:\-]+$")
+_SCAN_NUM_RE = re.compile(r"\((\d+)\)")
+_ABBR_END_RE = re.compile(r"\b(Mr|Mrs|Ms|Dr|Rs|No|St|Rd|vs|etc|Prof|Sr|Jr|Inc|Ltd|Co)\.$", re.IGNORECASE)
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Split into sentences without breaking on abbreviations like Rs./No./Dr."""
+    try:
+        raw = [s for s in re.split(r"(?<=[.!?])\s+", (text or "").strip()) if s.strip()]
+        out: list[str] = []
+        for piece in raw:
+            if out and _ABBR_END_RE.search(out[-1].strip()):
+                out[-1] = out[-1].rstrip() + " " + piece.strip()
+            else:
+                out.append(piece.strip())
+        return out
+    except (ValueError, TypeError, AttributeError):
+        return [text] if text else []
 
 
 def _md_inline(text: str) -> str:
@@ -95,9 +112,30 @@ def _split_md_row(line: str) -> list[str]:
         return []
 
 
-def _md_to_html(text: str) -> str:
-    """Tiny markdown subset: tables, bold, line breaks. Never raises."""
+def _display_name(name: str, limit: int = 30) -> str:
+    """Short distinctive file label. Scanner boilerplate collapses to (N).ext."""
     try:
+        s = str(name or "")
+        if "xerox multifunction printer" in s.lower():
+            m = _SCAN_NUM_RE.search(s)
+            if m:
+                ext = s.rsplit(".", 1)[-1] if "." in s else ""
+                return f"({m.group(1)}).{ext}" if ext else f"({m.group(1)})"
+        return _short_name(s, limit)
+    except (ValueError, TypeError, AttributeError):
+        return ""
+
+
+def _md_to_html(text: str) -> str:
+    """Tiny markdown subset: tables, bold, line breaks, paragraphs. Never raises."""
+    try:
+        if "|" not in (text or "") and len(text or "") > 300:
+            single = [line for line in (text or "").split("\n") if line.strip()]
+            if len(single) <= 1:
+                sents = _split_sentences(text)
+                if len(sents) > 1:
+                    paras = [" ".join(sents[i:i + 2]) for i in range(0, len(sents), 2)]
+                    return "".join(f"<p>{_md_inline(p)}</p>" for p in paras)
         lines = (text or "").split("\n")
         out: list[str] = []
         i = 0
@@ -230,18 +268,20 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
         chunks = verdict.get("chunks", []) or verdict.get("sources", []) or []
         reason = str(verdict.get("reason", ""))
         if status == "CERTIFY":
-            color, headline = "#047857", "Answer from your documents"
+            pill_bg, pill_fg, pill_txt = "#d4fae8", "#0b7a55", "Checked against your files"
         elif status == "BLOCK":
-            color, headline = "#b91c1c", "No reliable answer, needs a human look"
+            pill_bg, pill_fg, pill_txt = "#fbe3e3", "#c04545", "Needs a human look"
         else:
-            color, headline = "#b45309", "Something went wrong"
+            pill_bg, pill_fg, pill_txt = "#fdf3e3", "#a86a08", "Something went wrong"
+        _body = (render_cited_answer(answer, chunks) if answer
+                 else "<i>Nothing to show, flagged for human review. "
+                 "Try fewer words, or open the matching files below.</i>")
         parts = [
             '<div class="doc-card answer-card">',
-            f'<div class="answer-top"><span class="answer-title">{_html.escape(headline)}</span> '
-            f'<span class="answer-badge" style="border:1px solid {color};border-radius:4px;'
-            f'padding:0 6px;color:{color};font-size:0.8rem;">{_html.escape(status)}</span></div>',
-            f'<div class="answer-query">{_html.escape(query)}</div>',
-            f'<div class="answer-body">{render_cited_answer(answer, chunks) if answer else "<i>Nothing to show, flagged for human review. Try fewer words, or open the matching files below.</i>"}</div>',
+            '<div class="answer-top"><span class="answer-kicker">Answer</span>'
+            f'<span class="answer-badge" title="{_html.escape(status)}" '
+            f'style="background:{pill_bg};color:{pill_fg};">{_html.escape(pill_txt)}</span></div>',
+            f'<div class="answer-body">{_body}</div>',
         ]
         if reason:
             friendly = _friendly_reason(reason)
@@ -255,27 +295,35 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
             others = len(chunks) - len(shown)
             items = []
             for n, ch in zip(used or [1], shown):
-                label = _page_label(ch if isinstance(ch, dict) else {})
+                chd = ch if isinstance(ch, dict) else {}
+                disp = _display_name(str(chd.get("file_name", "unknown")))
+                pg = chd.get("page_number", chd.get("page"))
+                page_bit = ""
+                try:
+                    if pg is not None and int(pg) > 0:
+                        page_bit = f" · p{int(pg)}"
+                except (ValueError, TypeError):
+                    pass
                 times = len(re.findall(rf"\[{n}\]", answer or ""))
-                cite_note = f" · cited {times} time" + ("s" if times != 1 else "") + " in the answer" if times else ""
-                about = " · ".join(t for t in (str(ch.get("category", "") or ""),
-                                               str(ch.get("department", "") or "")) if t and t != "Unclassified")
-                quote = clean_snippet(str(ch.get("text", "")), limit=180)
+                meta = " · ".join(t for t in (str(chd.get("category", "") or ""),
+                                              str(chd.get("department", "") or "")) if t and t != "Unclassified")
+                if times:
+                    meta = (meta + " · " if meta else "") + f"cited {times}×"
+                quote = clean_snippet(str(chd.get("text", "")), limit=180)
                 items.append(
-                    f'<li><span class="ev-file">[{n}] {_html.escape(label)}</span>'
-                    f'<span class="ev-cite">{_html.escape(cite_note)}</span>'
-                    + (f'<br><span class="ev-about">About this file: {_html.escape(about)}</span>' if about else "")
-                    + (f'<details class="ev-quote"><summary>Exact words from the file, scan errors included</summary>'
+                    f'<li><span class="ev-file">[{n}] {_html.escape(disp)}{_html.escape(page_bit)}</span>'
+                    + (f' <span class="ev-cite">{_html.escape(meta)}</span>' if meta else "")
+                    + (f'<details class="ev-quote"><summary>Exact words from the file</summary>'
                        f'<p>“{_html.escape(quote)}”</p></details>' if quote else "")
                     + "</li>"
                 )
-            parts.append('<div class="answer-evidence-label">Where this came from</div>'
+            parts.append('<div class="answer-evidence-label">Sources</div>'
                          f'<ol class="answer-evidence">{"".join(items)}</ol>')
             pills = []
             for n in used or [1]:
                 if 1 <= n <= len(chunks):
                     ch = chunks[n - 1] if isinstance(chunks[n - 1], dict) else {}
-                    nm = _short_name(_page_label(ch), 28)
+                    nm = _display_name(str(ch.get("file_name", "unknown")), 28)
                     times = len(re.findall(rf"\[{n}\]", answer or ""))
                     tag = f" ×{times}" if times > 1 else ""
                     pills.append(

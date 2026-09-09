@@ -812,36 +812,58 @@ def render_dashboard() -> None:
             margin-bottom: 0.2rem;
         }
         .cite-chip {
-            color: #1f77b4;
-            font-weight: 700;
+            color: #0f766e;
+            font-weight: 600;
         }
-        /* Answer card: question first, answer on white, evidence subordinate */
+        /* Answer card: Mintlify reading vocabulary. Hairline borders carry
+           the depth, one accent, three weights, quiet micro-labels. */
         .answer-card {
-            border: 1px solid #d1d5db;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            background: #ffffff;
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 16px;
+            box-shadow: rgba(0,0,0,0.03) 0px 2px 4px;
+            padding: 1.4rem 1.5rem;
         }
         .answer-top {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 0.5rem;
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.8rem;
+        }
+        .answer-kicker {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #666666;
+        }
+        .answer-badge {
+            font-size: 0.78rem;
+            font-weight: 500;
+            border-radius: 999px;
+            padding: 0.15rem 0.7rem;
+            white-space: nowrap;
         }
         .answer-title {
             font-weight: 600;
             font-size: 1.05rem;
-            color: #111827;
+            color: #0d0d0d;
         }
         .answer-query {
             font-size: 1rem;
             font-weight: 500;
-            color: #111827;
+            color: #0d0d0d;
             margin: 0.1rem 0 0.6rem;
         }
         .answer-body {
-            font-size: 0.95rem;
-            color: #1f2937;
-            line-height: 1.65;
+            font-size: 1rem;
+            color: #333333;
+            line-height: 1.5;
             max-width: 72ch;
+        }
+        .answer-body p {
+            margin: 0 0 0.7rem;
         }
         .answer-body table {
             border-collapse: collapse;
@@ -859,44 +881,46 @@ def render_dashboard() -> None:
         }
         .answer-note {
             font-size: 0.85rem;
-            color: #6b7280;
+            color: #666666;
             margin-top: 0.5rem;
         }
         .answer-evidence-label {
             font-size: 0.75rem;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #9ca3af;
-            margin-top: 1rem;
+            letter-spacing: 0.06em;
+            color: #666666;
+            margin-top: 1.1rem;
         }
         .answer-evidence {
-            margin: 0.3rem 0;
+            margin: 0.4rem 0;
             padding-left: 1.3rem;
             font-size: 0.88rem;
-            color: #374151;
+            color: #333333;
         }
         .answer-evidence li {
-            margin-bottom: 0.4rem;
+            margin-bottom: 0.45rem;
         }
         .ev-file {
-            font-weight: 600;
-            color: #1f2937;
+            font-weight: 500;
+            color: #0d0d0d;
         }
         .ev-cite, .ev-about {
-            color: #6b7280;
+            color: #666666;
             font-size: 0.85rem;
         }
         .ev-quote {
-            margin-top: 0.2rem;
+            margin-top: 0.25rem;
         }
         .ev-quote summary {
             cursor: pointer;
-            color: #1f77b4;
+            color: #0f766e;
             font-size: 0.85rem;
         }
         .ev-quote p {
-            background: #f9fafb;
-            border-radius: 6px;
+            background: #fafafa;
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 8px;
             padding: 0.6rem 0.75rem;
             font-size: 0.85rem;
             color: #4b5563;
@@ -905,32 +929,33 @@ def render_dashboard() -> None:
         }
         .answer-foot {
             font-size: 0.78rem;
-            color: #9ca3af;
-            margin-top: 0.7rem;
+            color: #888888;
+            margin-top: 0.9rem;
         }
         .src-strip {
             display: flex;
             flex-wrap: wrap;
             gap: 0.35rem;
-            margin: 0.1rem 0 0.65rem;
+            margin: 0.8rem 0 0;
         }
         .src-pill {
             font-size: 0.78rem;
-            color: #1f2937;
-            background: #f0f2f6;
-            border: 1px solid #e5e7eb;
+            font-weight: 500;
+            color: #333333;
+            background: #ffffff;
+            border: 1px solid rgba(0,0,0,0.08);
             border-radius: 999px;
-            padding: 0.1rem 0.6rem;
+            padding: 0.15rem 0.7rem;
             white-space: nowrap;
         }
         .how-built {
-            margin-top: 0.7rem;
+            margin-top: 0.9rem;
             font-size: 0.85rem;
-            color: #4b5563;
+            color: #666666;
         }
         .how-built summary {
             cursor: pointer;
-            color: #1f77b4;
+            color: #0f766e;
             font-size: 0.85rem;
         }
         .how-built ol {
