@@ -711,9 +711,9 @@ def _render_snippet_card(
             try:
                 if compact:
                     thumb = _build_uniform_thumbnail(Image.open(str(snippet_path)), width=480, height=160)
-                    st.image(thumb, use_column_width=True)
+                    st.image(thumb, use_container_width=True)
                 else:
-                    st.image(str(snippet_path), use_column_width=True)
+                    st.image(str(snippet_path), use_container_width=True)
             except Exception as img_err:
                 st.error(f"Could not load snippet image: {img_err}")
         else:
@@ -855,7 +855,7 @@ def _render_snippet_card(
         if snippet_path.exists():
             try:
                 preview_img = Image.open(str(snippet_path))
-                st.image(_build_uniform_thumbnail(preview_img, width=640, height=220), use_column_width=True)
+                st.image(_build_uniform_thumbnail(preview_img, width=640, height=220), use_container_width=True)
             except Exception:
                 pass
 

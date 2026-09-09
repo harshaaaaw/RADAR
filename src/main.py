@@ -237,14 +237,28 @@ def check():
             click.echo("\n  📝 To start OpenSearch: cd bin && .\\start_opensearch.bat")
             all_ok = False
         
-        # Check PaddleOCR
-        click.echo("\nChecking PaddleOCR...")
-        try:
-            import paddleocr  # noqa: F401
-            click.secho("  ✓ PaddleOCR: Available", fg='green')
-        except ImportError:
-            click.secho("  ✗ PaddleOCR: Not installed (run: pip install paddleocr paddlepaddle)", fg='red')
-            all_ok = False
+        # Check OCR engine (whatever is configured: tesseract | paddle)
+        engine = str(getattr(config.ocr, 'engine', 'tesseract') or 'tesseract').lower()
+        click.echo(f"\nChecking OCR engine ({engine})...")
+        if engine == 'paddle':
+            try:
+                import paddleocr  # noqa: F401
+                click.secho("  ✓ PaddleOCR: Available", fg='green')
+            except ImportError:
+                click.secho("  ✗ PaddleOCR: Not installed (run: pip install paddleocr paddlepaddle)", fg='red')
+                all_ok = False
+        else:
+            try:
+                from ocr.tesseract_wrapper import TesseractWrapper
+                _tw = TesseractWrapper()
+                if _tw.health_check():
+                    click.secho(f"  ✓ Tesseract: Available ({_tw.get_version()})", fg='green')
+                else:
+                    click.secho("  ✗ Tesseract: binary not found (install from https://github.com/UB-Mannheim/tesseract/releases)", fg='red')
+                    all_ok = False
+            except Exception as e:
+                click.secho(f"  ✗ Tesseract check failed: {e}", fg='red')
+                all_ok = False
         
         # Summary
         click.echo(f"\n{'='*80}")
@@ -330,12 +344,27 @@ def init(config):
         except Exception as e:
             click.secho(f"✗ OpenSearch not accessible: {e}", fg='red')
         
-        # Check PaddleOCR
+        # Check OCR engine (whatever is configured: tesseract | paddle)
         try:
-            import paddleocr  # noqa: F401
-            click.secho("✓ PaddleOCR: Available", fg='green')
-        except ImportError:
-            click.secho("✗ PaddleOCR: Not installed (run: pip install paddleocr paddlepaddle)", fg='red')
+            _engine = str(getattr(system_config.ocr, 'engine', 'tesseract') or 'tesseract').lower()
+        except Exception:
+            _engine = 'tesseract'
+        if _engine == 'paddle':
+            try:
+                import paddleocr  # noqa: F401
+                click.secho("✓ PaddleOCR: Available", fg='green')
+            except ImportError:
+                click.secho("✗ PaddleOCR: Not installed (run: pip install paddleocr paddlepaddle)", fg='red')
+        else:
+            try:
+                from ocr.tesseract_wrapper import TesseractWrapper
+                _tw = TesseractWrapper()
+                if _tw.health_check():
+                    click.secho(f"✓ Tesseract: Available ({_tw.get_version()})", fg='green')
+                else:
+                    click.secho("✗ Tesseract: binary not found", fg='red')
+            except Exception as e:
+                click.secho(f"✗ Tesseract check failed: {e}", fg='red')
         
         # Print configuration summary
         click.echo(f"\n{'='*80}")
