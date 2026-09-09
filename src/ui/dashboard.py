@@ -1163,6 +1163,10 @@ def _render_universal_answer(query: str, os_client: Any) -> None:
 def render_search_tab(config: Any, os_client: Optional[OpenSearchClient]) -> None:
     """Render the search interface tab."""
     st.markdown("### Search Your Documents")
+    st.caption(
+        "Ask a question in plain words. You get an answer built from your files, "
+        "the list of files it came from, and below that every matching file to read."
+    )
     
     # Search input + mode toggle
     col1, col2 = st.columns([6, 1])
@@ -1260,7 +1264,7 @@ def render_search_tab(config: Any, os_client: Optional[OpenSearchClient]) -> Non
                     results = perform_search(os_client, query, filters=filters)
 
                     if results:
-                        st.caption(f"{len(results)} file(s)")
+                        st.caption(f"{len(results)} matching files, listed below for reading")
                         render_search_results(results, query)
                     else:
                         st.info("No results found matching your query. Try different keywords or check spelling.")
@@ -2310,7 +2314,7 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
         st.info(f"No documents found matching '{query}'")
         return
     
-    st.markdown(f"### Found {len(results)} Result(s)")
+    st.markdown(f"### Matching files ({len(results)})")
     
     for i, result in enumerate(results):
         with st.container():
