@@ -120,7 +120,6 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
         answer = str(verdict.get("answer", ""))
         cost = float(verdict.get("cost_usd", 0.0))
         chunks = verdict.get("chunks", []) or []
-        trace = verdict.get("trace", []) or []
         reason = str(verdict.get("reason", ""))
         if status == "CERTIFY":
             color, headline = "#047857", "Answer from your documents"
