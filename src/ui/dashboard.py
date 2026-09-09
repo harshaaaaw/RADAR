@@ -793,8 +793,12 @@ def render_dashboard() -> None:
         .cite-chip {
             color: #0f766e;
             font-weight: 600;
-            cursor: help;
+            cursor: pointer;
+            text-decoration: none;
+            vertical-align: super;
+            font-size: 0.82em;
         }
+        a.cite-chip:hover { text-decoration: underline; }
         .answer-sources { display: flex; flex-direction: column; gap: 0.5rem; }
         .src-card {
             display: flex;
@@ -804,7 +808,12 @@ def render_dashboard() -> None:
             background: #ffffff;
             border: 1px solid rgba(16,24,40,0.08);
             border-radius: 12px;
+            scroll-margin-top: 1rem;
             transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+        }
+        .src-card:target {
+            border-color: rgba(15,118,110,0.55);
+            box-shadow: 0 0 0 2px rgba(15,118,110,0.15);
         }
         .src-card:hover {
             border-color: rgba(15,118,110,0.35);
@@ -821,6 +830,21 @@ def render_dashboard() -> None:
             display: flex; align-items: center; justify-content: center;
         }
         .src-name { font-size: 0.92rem; font-weight: 500; color: #0d0d0d; }
+        .src-main { min-width: 0; flex: 1; }
+        .src-head {
+            display: flex; align-items: baseline; justify-content: space-between;
+            gap: 0.6rem;
+        }
+        .src-title { font-size: 0.95rem; font-weight: 600; color: #0d0d0d; }
+        .src-used {
+            flex: 0 0 auto; font-size: 0.75rem; font-weight: 600; color: #0b7a55;
+            background: #d4fae8; border-radius: 999px; padding: 0.08rem 0.55rem;
+            white-space: nowrap;
+        }
+        .src-file {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.78rem; color: #6b7280; margin-top: 0.1rem;
+        }
         .src-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.25rem; }
         .src-tag {
             font-size: 0.72rem; font-weight: 500; color: #555555;

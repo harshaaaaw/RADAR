@@ -188,8 +188,8 @@ def render_cited_answer(answer: str, chunks: list) -> str:
             if 1 <= n <= len(chunks or []):
                 ch = chunks[n - 1] or {}
                 label = _page_label(ch if isinstance(ch, dict) else {})
-                return (f'<sup title="{_html.escape(label)}" '
-                        f'class="cite-chip">[{n}]</sup>')
+                return (f'<a href="#radar-src-{n}" title="{_html.escape(label)}" '
+                        f'class="cite-chip">[{n}]</a>')
             return ""
 
         with_chips = re.sub(r"\[(\d+)\]", _chip, safe)
@@ -307,19 +307,29 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
                 times = len(re.findall(rf"\[{n}\]", answer or ""))
                 tags = [t for t in (str(chd.get("category", "") or ""),
                                     str(chd.get("department", "") or "")) if t and t != "Unclassified"]
-                cite = f"cited {times}×" if times else ""
+                # Lead with meaning, not the scanner filename: title is the
+                # content signal (tags), filename drops to a muted second line.
+                title = " · ".join(tags) if tags else disp
+                file_line = (f"{disp}{page_bit}" if tags
+                             else (page_bit.strip(" ·") or ""))
+                if times == 1:
+                    used_txt = "Used 1 time in the answer"
+                elif times > 1:
+                    used_txt = f"Used {times} times in the answer"
+                else:
+                    used_txt = "Listed below, not quoted above"
                 tag_html = "".join(
                     f'<span class="src-tag">{_html.escape(t)}</span>' for t in tags)
-                if cite:
-                    tag_html += f'<span class="src-tag src-tag-cite">{_html.escape(cite)}</span>'
                 quote = clean_snippet(str(chd.get("text", "")), limit=180)
                 cards.append(
-                    f'<div class="src-card">'
+                    f'<div class="src-card" id="radar-src-{n}">'
                     f'<span class="src-num">{n}</span>'
                     f'<div class="src-main">'
-                    f'<div class="src-name">{_html.escape(disp)}{_html.escape(page_bit)}</div>'
+                    f'<div class="src-head"><span class="src-title">{_html.escape(title)}</span>'
+                    f'<span class="src-used">{_html.escape(used_txt)}</span></div>'
+                    + (f'<div class="src-file">{_html.escape(file_line)}</div>' if file_line else "")
                     + (f'<div class="src-tags">{tag_html}</div>' if tag_html else "")
-                    + (f'<details class="ev-quote"><summary><span class="ev-ico">“</span>Exact words from the file</summary>'
+                    + (f'<details class="ev-quote"><summary><span class="ev-ico">“</span>Lines used from this file</summary>'
                        f'<p>{_html.escape(quote)}</p></details>' if quote else "")
                     + '</div></div>'
                 )
