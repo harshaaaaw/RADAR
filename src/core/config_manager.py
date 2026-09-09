@@ -132,6 +132,15 @@ class PaddleConfig:
 
 
 @dataclass
+class TesseractConfig:
+    """Tesseract OCR configuration (lightweight local engine)"""
+    lang: str = "eng"
+    psm: str = "3"
+    timeout_seconds: int = 60
+    exe_path: str = ""
+
+
+@dataclass
 class OCRConfig:
     """OCR configuration"""
     initial_workers: int
@@ -146,6 +155,8 @@ class OCRConfig:
     smart_retries: Dict[str, Any] = None
     max_pages_per_pdf: int = 100
     min_confidence: int = 25
+    engine: str = "tesseract"
+    tesseract: TesseractConfig = None
 
 
 @dataclass
@@ -541,12 +552,18 @@ class ConfigurationManager:
         
         # Create PaddleConfig
         paddle = PaddleConfig(**self.raw_config['ocr'].get('paddle', {}))
-        
+
+        # Create TesseractConfig (missing keys fall back to dataclass defaults)
+        tess_raw = dict(self.raw_config['ocr'].get('tesseract', {}) or {})
+        tesseract = TesseractConfig(**tess_raw)
+
         # Create OCRConfig
         ocr = OCRConfig(
             initial_workers=self.raw_config['ocr']['initial_workers'],
             post_indexing_workers=self.raw_config['ocr']['post_indexing_workers'],
             paddle=paddle,
+            engine=str(self.raw_config['ocr'].get('engine', 'tesseract') or 'tesseract').lower(),
+            tesseract=tesseract,
             preprocessing=self.raw_config['ocr']['preprocessing'],
             quality=self.raw_config['ocr']['quality'],
             priorities=self.raw_config['ocr']['priorities'],

@@ -36,6 +36,7 @@ from core.reporting_manager import (
 
 from .image_preprocessor_advanced import ImagePreprocessor
 from .paddle_wrapper import PaddleWrapper
+from .tesseract_wrapper import TesseractWrapper
 
 try:
     import cv2 as cv2
@@ -90,7 +91,14 @@ class OCRWorker:
         
         # Initialize OCR components
         self.preprocessor = ImagePreprocessor()
-        self.paddle = PaddleWrapper()
+        # OCR engine is selectable via config (ocr.engine: tesseract | paddle).
+        # Tesseract is the lightweight default; PaddleOCR stays as fallback.
+        engine = str(getattr(self.config.ocr, 'engine', 'tesseract') or 'tesseract').lower()
+        if engine == 'paddle':
+            self.paddle = PaddleWrapper()
+        else:
+            self.paddle = TesseractWrapper()
+        self.ocr_engine_name = engine
         
 
         # Initialize NLP text corrector for OCR text
@@ -246,12 +254,13 @@ class OCRWorker:
                     self.worker_id
                 )
         
-        # Critical: check PaddleOCR is actually installed
+        # Critical: check the selected OCR engine is actually usable
         if not self.paddle.health_check():
             logger.critical(
-                "Worker %s: PaddleOCR is NOT installed or failed to initialise. "
-                "ALL OCR jobs will fail. Run: pip install paddleocr paddlepaddle",
-                self.worker_id
+                "Worker %s: OCR engine '%s' is NOT usable. "
+                "Tesseract: install the binary (https://github.com/UB-Mannheim/tesseract/releases). "
+                "PaddleOCR: run pip install paddleocr paddlepaddle",
+                self.worker_id, self.ocr_engine_name,
             )
         else:
             # Pre-warm the primary OCR engine so first-file latency is absorbed at startup.

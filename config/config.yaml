@@ -214,7 +214,19 @@ ocr:
 
   initial_workers: 4
   post_indexing_workers: 4
-  
+
+  # OCR engine: tesseract (lightweight, low RAM) or paddle (heavier, better
+  # on handwriting and complex layouts). PaddleOCR is Baidu's engine.
+  engine: "tesseract"
+
+  tesseract:
+    lang: "eng"
+    psm: "3"
+    timeout_seconds: 60
+    # Leave empty to use PATH / default install location.
+    # Example: "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+    exe_path: ""
+
   max_pages_per_pdf: 100
   
   # Update these paths after installation
