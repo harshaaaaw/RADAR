@@ -56,6 +56,17 @@ class AgentGraph:
                 trace.append({"node": "file", "file": file_part["file"],
                               "chunks": len(file_part["chunks"])})
             blocks = []
+            # Document-level knowledge: full text of the lead match goes first
+            # so the answer reasons over the whole document, not just snippets.
+            lead_file = ""
+            if retrieval["chunks"]:
+                lead_file = str(retrieval["chunks"][0].get("file_name", "") or "")
+            if lead_file and lead_file != (file_part.get("file", "") or ""):
+                lead = specialists.file_agent(lead_file, self.search_fn)
+                trace.append({"node": "file-lead", "file": lead_file,
+                              "chunks": len(lead["chunks"]), "latency_ms": lead["latency_ms"]})
+                if lead["full_text"]:
+                    blocks.append(f"FULL DOCUMENT {lead_file}:\n{lead['full_text'][:6000]}")
             if file_part["full_text"]:
                 blocks.append(f"FULL DOCUMENT {file_part['file']}:\n{file_part['full_text']}")
             blocks.append(f"ANALYTICS:\n{analytics['summary']}")
@@ -66,7 +77,8 @@ class AgentGraph:
             answer = specialists.answer_agent(current_query, "\n\n".join(blocks), history)
             total_tokens += int(answer.get("tokens", 0))
             total_cost += float(answer.get("cost_usd", 0.0))
-            trace.append({"node": "answer", "tokens": answer["tokens"], "mock": answer["mock"]})
+            trace.append({"node": "answer", "tokens": answer["tokens"], "mock": answer["mock"],
+                          "extractive": bool(answer.get("extractive"))})
             sources = retrieval["chunks"] + file_part["chunks"]
             seen: dict[str, dict[str, Any]] = {}
             for item in sources:
@@ -84,6 +96,22 @@ class AgentGraph:
         if best["sources"]:
             scores = [float(s.get("quality_score", 0.7)) for s in best["sources"]]
             confidence = round(sum(scores) / len(scores), 2)
+        mock_answer = any(t.get("node") == "answer" and t.get("mock") for t in trace)
+        extractive = any(t.get("node") == "answer" and t.get("extractive") for t in trace)
+        # A mock LLM answer with no extracted sentences is a placeholder:
+        # never certify it, say the answer service is missing.
+        if mock_answer and not extractive:
+            return {
+                "answer": BLOCK_MESSAGE if not best["sources"] else "",
+                "sources": best["sources"],
+                "confidence": confidence,
+                "decision": "BLOCK",
+                "reason": "answer service not configured, connect an LLM key for written answers",
+                "tokens": total_tokens,
+                "cost_usd": round(total_cost, 6),
+                "latency_ms": int((time.time() - start) * 1000),
+                "trace": trace,
+            }
         blocked = confidence < CONFIDENCE_FLOOR or not best["sources"] or not last_ok
         decision = "BLOCK" if blocked else "CERTIFY"
         return {

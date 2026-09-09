@@ -789,6 +789,17 @@ def render_dashboard() -> None:
             color: #6b7280;
             margin-bottom: 0.5rem;
         }
+        /* Answer vs files separation + calmer controls */
+        hr {
+            margin: 1.5rem 0;
+        }
+        .stTextInput input:focus {
+            border-color: #1f77b4;
+            box-shadow: 0 0 0 1px #1f77b4;
+        }
+        div[data-testid="stToolbar"] {
+            display: none;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1260,11 +1271,11 @@ def render_search_tab(config: Any, os_client: Optional[OpenSearchClient]) -> Non
         if query and len(query) >= 2:
             with st.spinner("Searching..."):
                 _render_universal_answer(query, os_client)
+                st.divider()
                 try:
                     results = perform_search(os_client, query, filters=filters)
 
                     if results:
-                        st.caption(f"{len(results)} matching files, listed below for reading")
                         render_search_results(results, query)
                     else:
                         st.info("No results found matching your query. Try different keywords or check spelling.")
@@ -2338,21 +2349,29 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
                     unsafe_allow_html=True
                 )
 
-            # Metadata line
+            # Metadata line: short and scannable, no machine paths or raw scores
             file_size_mb = result.get('file_size', 0) / (1024 * 1024)
-            meta_parts = [f"Path: {_esc(result['filepath'])}"]
+            metadata = result.get('metadata', {}) or {}
+            meta_parts = []
             if file_size_mb > 0:
-                meta_parts.append(f"Size: {file_size_mb:.2f} MB")
+                meta_parts.append(f"{file_size_mb:.2f} MB")
             if result.get('file_type'):
-                meta_parts.append(f"Type: {result['file_type'].upper()}")
-            if result.get('mime_type'):
-                meta_parts.append(f"MIME: {result['mime_type']}")
-
-            metadata = result.get('metadata', {})
-            if metadata.get('verification_status'):
-                meta_parts.append(f"<b>Status:</b> {metadata['verification_status']} (Risk: {metadata.get('overall_risk_score','N/A')})")
+                meta_parts.append(f"{result['file_type'].upper()}")
             if metadata.get('page_count'):
-                meta_parts.append(f"Pages: {metadata['page_count']}")
+                meta_parts.append(f"{metadata['page_count']} pages")
+
+            ocr_label = ""
+            try:
+                risk = float(metadata.get('overall_risk_score', ''))
+                ocr_conf = max(0.0, min(100.0, 100.0 - risk))
+                ocr_label = f"OCR {ocr_conf:.0f}%"
+            except (ValueError, TypeError):
+                pass
+            status = str(metadata.get('verification_status', '') or '')
+            if status == "High Confidence":
+                meta_parts.append(f"Text readable{(' (' + ocr_label + ')') if ocr_label else ''}")
+            elif status:
+                meta_parts.append(f"Needs human review{(' (' + ocr_label + ')') if ocr_label else ''}")
 
             flags = []
             if metadata.get('has_signature'): flags.append("Signature")
@@ -2360,20 +2379,10 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
             if metadata.get('has_logo'):      flags.append("Logo")
             if metadata.get('has_handwritten'): flags.append("Handwritten")
             if flags:
-                meta_parts.append(f"<b>Found:</b> {', '.join(flags)}")
+                meta_parts.append(f"Shows: {', '.join(flags)}")
 
-            matched_field = result.get('matched_field', 'content')
-            field_labels = {
-                'main_content': 'Document Text', 'ocr_content': 'OCR Text',
-                'embedded_content': 'Embedded Content', 'reviewed_content': 'Verified Review Label',
-                'file_name': 'Filename', 'file_path': 'Path', 'metadata': 'Metadata'
-            }
-            field_label = field_labels.get(matched_field)
-            score_str = f"Score: {result.get('score', 0):.1f}"
-            if field_label:
-                meta_parts.append(f"Source: {field_label} | {score_str}")
-            else:
-                meta_parts.append(score_str)
+            if i == 0:
+                meta_parts.append("Best match")
 
             st.markdown(f'<div class="doc-meta">{" | ".join(meta_parts)}</div>', unsafe_allow_html=True)
 
@@ -2382,6 +2391,15 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
             if snippet:
                 snippet_escaped = _esc(snippet)
                 snippet_html = re.sub(r'\*\*(.+?)\*\*', r'<span class="highlight">\1</span>', snippet_escaped)
+                # Demote junk highlights: 1-3 letter words and stopwords
+                # never earned a highlight, even if the engine wrapped them.
+                snippet_html = re.sub(
+                    r'<span class="highlight">(\w{1,3})</span>', r'\1', snippet_html)
+                for _stop in ("what", "which", "with", "from", "that", "this",
+                              "your", "does", "have", "about"):
+                    snippet_html = re.sub(
+                        r'<span class="highlight">(' + _stop + r')</span>',
+                        r'\1', snippet_html, flags=re.IGNORECASE)
                 st.markdown(f'<div class="result-snippet">{snippet_html}</div>', unsafe_allow_html=True)
 
             # ── Action buttons in a horizontal row ──────────────────────────
@@ -2407,7 +2425,7 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
                 else:
                     file_opened = False
                     file_open_error = None
-                    if st.button("📂 Open File", key=f"open_{i}", width='stretch'):
+                    if st.button("📂 Open File", key=f"open_{i}", width='stretch', type="primary"):
                         try:
                             open_file_with_default_app(result["filepath"])
                             file_opened = True

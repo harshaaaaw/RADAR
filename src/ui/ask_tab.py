@@ -13,6 +13,8 @@ _FRIENDLY_REASONS = {
     "cited source": "The answer quotes the files listed below.",
     "numbered citations present": "Each number in the answer points to the file it came from.",
     "sources present and query grounded": "The answer is drawn from the files listed below.",
+    "answer service not configured, connect an LLM key for written answers":
+        "Written answers need an LLM key. The matching files below still work.",
     "no grounding for query terms, blocked": "Your question's key words appear in none of the files.",
     "no sources, blocked": "No files matched your question.",
 }
@@ -20,6 +22,32 @@ _FRIENDLY_REASONS = {
 
 def _friendly_reason(reason: str) -> str:
     return _FRIENDLY_REASONS.get((reason or "").strip(), (reason or "").strip())
+
+
+_PAGE_HEADER_RE = re.compile(r"---\s*Page\s+\d+\s*---")
+
+
+def clean_snippet(text: str, limit: int = 300) -> str:
+    """Strip page headers and collapse whitespace; cut at a word boundary."""
+    try:
+        t = _PAGE_HEADER_RE.sub(" ", text or "")
+        t = " ".join(t.split())
+        if len(t) > limit:
+            t = t[:limit].rsplit(" ", 1)[0] + "…"
+        return t
+    except (ValueError, TypeError, AttributeError):
+        return ""
+
+
+def fmt_cost(cost: float) -> str:
+    """Short honest cost: $0.0006 not $0.000615. Never raises."""
+    try:
+        c = float(cost or 0.0)
+        if c == 0:
+            return "$0"
+        return "$" + f"{c:.4f}".rstrip("0").rstrip(".")
+    except (ValueError, TypeError):
+        return "$0"
 
 
 def _chip_sources(answer: str, chunks: list) -> tuple[list[int], list[int]]:
@@ -103,7 +131,7 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
             for i, ch in enumerate(chunks[:5], 1):
                 name = _html.escape(str(ch.get("file_name", "unknown")))
                 page = _html.escape(str(ch.get("page_number", 1)))
-                quote = " ".join(str(ch.get("text", "")).split())[:300]
+                quote = clean_snippet(str(ch.get("text", "")))
                 items.append(
                     f"<li>[{i}] {name} p{page}"
                     + (f'<br><span style="color:#374151;">Quoted from the file: “{_html.escape(quote)}”</span>' if quote else "")
@@ -113,7 +141,7 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
                          f'<ol class="doc-meta">{"".join(items)}</ol>')
         parts.append(
             f'<div class="doc-meta">Built from {len(chunks)} file(s) '
-            f"in {len(trace)} steps · cost ${cost:.6f}</div>"
+            f"in {len(trace)} steps · cost {fmt_cost(cost)}</div>"
         )
         parts.append("</div>")
         return "\n".join(parts)

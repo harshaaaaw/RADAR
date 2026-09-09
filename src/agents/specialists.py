@@ -35,6 +35,7 @@ _DATE_HINT_RE = re.compile(
 )
 _PROPER_HINT_RE = re.compile(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b")
 _SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+_PAGE_HEADER_RE = re.compile(r"---\s*Page\s+\d+\s*---")
 
 
 def _question_type(query: str) -> str:
@@ -62,7 +63,9 @@ def _context_pieces(context: str) -> tuple[list[tuple[str, str]], str]:
         if block.startswith("ANALYTICS:"):
             analytics = block[len("ANALYTICS:"):].strip()
             continue
-        m = re.match(r"Source \[\d+\]\s+(.*?)\s+p\d+:\s*(.*)", block, re.DOTALL)
+        m = re.match(r"Source \[\d+\]\s+(.*?)\s+p\S+:\s*(.*)", block, re.DOTALL)
+        if not m:
+            m = re.match(r"Source \[\d+\]\s+([^:]+):\s*(.*)", block, re.DOTALL)
         if m:
             pieces.append((m.group(1).strip(), m.group(2).strip()))
             continue
@@ -91,6 +94,7 @@ def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
             return f"Repository counts: {analytics[:300]}"
         scored: list[tuple[float, str, str]] = []
         for name, text in pieces:
+            text = _PAGE_HEADER_RE.sub(" ", text)
             for sent in _SENT_SPLIT_RE.split(text):
                 sent = " ".join(sent.split())
                 if len(sent) < 25 or len(sent) > 500:
@@ -187,6 +191,11 @@ def file_agent(file_name: str, search_fn: SearchFn) -> dict[str, Any]:
     try:
         rows = [r for r in (search_fn(file_name, {}) or [])
                 if str(r.get("file_name", "")).lower() == file_name.lower()]
+        for r in rows:
+            if not r.get("text"):
+                normed = _norm_text(r)
+                if normed:
+                    r["text"] = normed
         joined = "\n\n".join(f"[Page {r.get('page_number', 1)}] {r.get('text', '')}" for r in rows)
         ms = int((time.time() - start) * 1000)
         return {"file": file_name, "chunks": rows, "full_text": joined[:12000], "latency_ms": ms}
@@ -209,7 +218,7 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
     prior = ""
     if history:
         prior = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history[-4:])
-    user = f"History:\n{prior}\n\nContext:\n{context[:9000]}\n\nQuestion: {mask_pii(query)}"
+    user = f"History:\n{prior}\n\nContext:\n{context[:16000]}\n\nQuestion: {mask_pii(query)}"
     result = call_llm(system, user, agent="answer")
     text = str(result.get("text", "") or "")
     norm = re.sub(r"【(\d+)[^】]*】", r"[\1]", text)

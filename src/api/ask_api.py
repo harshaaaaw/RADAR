@@ -77,10 +77,10 @@ def ask(req: AskRequest) -> dict[str, Any]:
 
     sources = result.get("sources", [])[:top_k]
     verdict = result.get("decision", "BLOCK")
-    reason = ""
+    reason = str(result.get("reason", "") or "")
     for node in reversed(result.get("trace", [])):
         if node.get("node") == "verifier":
-            reason = str(node.get("reason", ""))
+            reason = reason or str(node.get("reason", ""))
             break
     answer_out = "" if verdict == "BLOCK" else str(result.get("answer", ""))
     try:
