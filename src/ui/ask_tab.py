@@ -1,68 +1,51 @@
-"""Ask tab for the dashboard. Renders one agent verdict as markdown."""
+"""Shared answer-card formatter for universal search.
+
+The standalone Ask tab is gone: the main Search box now renders the agent
+verdict card (via verdict_to_markdown) above the keyword file list.
+This module keeps only the formatter so tests and the dashboard share it.
+"""
 from __future__ import annotations
 
 from typing import Any
 
 
 def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
-    """Format a verdict dict for Streamlit. Never raises on missing keys."""
+    """Format a verdict dict as an HTML card reusing the dashboard vocabulary.
+
+    Uses the existing doc-card / doc-filename / doc-meta / result-snippet
+    classes so the answer looks like every other result. All interpolated
+    text is HTML-escaped. Returns HTML, render with unsafe_allow_html=True.
+    Never raises on missing keys.
+    """
+    import html as _html
+
     try:
-        status = str(verdict.get("verdict", verdict.get("decision", "UNKNOWN")))
+        status = str(verdict.get("verdict", verdict.get("decision", "UNKNOWN"))).upper()
         answer = str(verdict.get("answer", ""))
         cost = float(verdict.get("cost_usd", 0.0))
         chunks = verdict.get("chunks", []) or []
         trace = verdict.get("trace", []) or []
         reason = str(verdict.get("reason", ""))
-        lines = [
-            f"## {status}",
-            "",
-            f"**Q:** {query}",
-            "",
-            f"**A:** {answer or '_blocked, needs human review_'}",
-            "",
-            f"**Cost:** ${cost:.6f} | **Sources:** {len(chunks)} | **Steps:** {len(trace)}",
+        color = "#047857" if status == "CERTIFY" else "#b91c1c"
+        parts = [
+            '<div class="doc-card">',
+            f'<div class="doc-filename" style="color:{color}">{_html.escape(status)}</div>',
+            f'<div class="doc-meta">Q: {_html.escape(query)}</div>',
+            f'<div class="result-snippet">{_html.escape(answer) if answer else "<i>blocked, needs human review</i>"}</div>',
+            f'<div class="doc-meta">Cost ${cost:.6f} | Sources {len(chunks)} | Steps {len(trace)}</div>',
         ]
         if reason:
-            lines += ["", f"**Why:** {reason}"]
+            parts.append(f'<div class="doc-meta">Why: {_html.escape(reason)}</div>')
         if chunks:
-            lines += ["", "### Sources"]
-            for i, ch in enumerate(chunks[:5], 1):
-                name = ch.get("file_name", "unknown")
-                page = ch.get("page_number", 1)
-                lines.append(f"{i}. {name} p{page}")
-        return "\n".join(lines)
-    except (ValueError, TypeError, AttributeError):
-        return f"## ERROR\n\n**Q:** {query}"
-
-
-def render_ask_tab() -> None:
-    """Streamlit tab. Imports streamlit lazily so tests stay light."""
-    try:
-        import streamlit as st
-    except ImportError:
-        return
-    try:
-        from api.ask_api import configure
-        from api.prod_wiring import build_prod_counts_fn, build_prod_search_fn
-        from indexing.opensearch_client import OpenSearchClient
-
-        st.subheader("Ask RADAR")
-        query = st.text_input("Question", placeholder="How many invoices do we have?")
-        tenant = st.text_input("Tenant", value="default")
-        if st.button("Ask") and query.strip():
-            client = OpenSearchClient()
-            configure(
-                search_fn=build_prod_search_fn(client),
-                counts_fn=build_prod_counts_fn(client),
+            items = "".join(
+                f"<li>{_html.escape(str(ch.get('file_name', 'unknown')))} "
+                f"p{_html.escape(str(ch.get('page_number', 1)))}</li>"
+                for ch in chunks[:5]
             )
-            from api.ask_api import AskRequest, ask
+            parts.append(f'<div class="doc-meta">Sources</div><ol class="doc-meta">{items}</ol>')
+        parts.append("</div>")
+        return "\n".join(parts)
+    except (ValueError, TypeError, AttributeError):
+        import html as _html2
 
-            verdict = ask(AskRequest(query=query, tenant_id=tenant))
-            st.markdown(verdict_to_markdown(verdict, query))
-    except (ValueError, TypeError, AttributeError) as exc:
-        try:
-            import streamlit as st
-
-            st.error(f"Ask failed: {exc}")
-        except ImportError:
-            pass
+        return f'<div class="doc-card"><div class="doc-filename">ERROR</div><div class="doc-meta">Q: {_html2.escape(query)}</div></div>'

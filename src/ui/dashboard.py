@@ -808,7 +808,7 @@ def render_dashboard() -> None:
     render_sidebar(config, os_client, queue_manager)
     
     # Main view selector (avoid rendering both views on every refresh)
-    view = st.radio("View", ["Search", "Ask", "Live Audit", "Snippet Review", "System Monitor"], horizontal=True, key="main_view_selector")
+    view = st.radio("View", ["Search", "Live Audit", "Snippet Review", "System Monitor"], horizontal=True, key="main_view_selector")
 
     # Clear review tab state when navigating away to prevent stale pagination
     if view != "Snippet Review":
@@ -816,29 +816,12 @@ def render_dashboard() -> None:
 
     if view == "Search":
         render_search_tab(config, os_client)
-    elif view == "Ask":
-        _render_ask_safe(config, os_client)
     elif view == "Live Audit":
         render_live_audit_tab(config)
     elif view == "Snippet Review":
         _render_snippet_review_safe(config)
     else:
         render_monitoring_tab(config, queue_manager)
-
-
-def _render_ask_safe(config: Any, os_client: Any = None) -> None:
-    """Load and render the Ask tab with a loading state.
-
-    Heavy imports stay inside the branch so Search and Monitor renders
-    never pay for the agent team when the user never opens Ask.
-    """
-    try:
-        from ui.ask_tab import render_ask_tab
-    except Exception as import_err:
-        st.error(f"Failed to load Ask module: {import_err}")
-        return
-
-    render_ask_tab()
 
 
 def _render_snippet_review_safe(config: Any) -> None:
@@ -1158,6 +1141,25 @@ def _get_filter_options(os_client: Optional[OpenSearchClient], field: str) -> Li
     return _cached_filter_options(id(os_client), field)
 
 
+def _render_universal_answer(query: str, os_client: Any) -> None:
+    """Semantic answer card above the keyword file list. Never breaks search."""
+    try:
+        from api.ask_api import AskRequest, ask, configure
+        from api.prod_wiring import build_prod_counts_fn, build_prod_search_fn
+        from ui.ask_tab import verdict_to_markdown
+
+        configure(
+            search_fn=build_prod_search_fn(os_client),
+            counts_fn=build_prod_counts_fn(os_client),
+        )
+        verdict = ask(AskRequest(query=query, tenant_id="default"))
+        if isinstance(verdict, dict) and (verdict.get("answer") or verdict.get("verdict")):
+            st.markdown(verdict_to_markdown(verdict, query), unsafe_allow_html=True)
+            st.markdown("---")
+    except Exception:
+        pass
+
+
 def render_search_tab(config: Any, os_client: Optional[OpenSearchClient]) -> None:
     """Render the search interface tab."""
     st.markdown("### Search Your Documents")
@@ -1167,7 +1169,7 @@ def render_search_tab(config: Any, os_client: Optional[OpenSearchClient]) -> Non
     with col1:
         query = st.text_input(
             "Search documents", 
-            placeholder="Enter keywords, filenames, or exact phrases in quotes...", 
+            placeholder="Ask a question or search keywords, filenames, phrases in quotes...", 
             label_visibility="collapsed",
             key="search_input"
         )
@@ -1249,15 +1251,16 @@ def render_search_tab(config: Any, os_client: Optional[OpenSearchClient]) -> Non
         st.error("OpenSearch is not available. Please check the system status.")
         return
     
-    # Perform search
+    # Perform search — one universal box: semantic answer card + keyword files
     if (query and len(query) >= 2) or search_button:
         if query and len(query) >= 2:
             with st.spinner("Searching..."):
+                _render_universal_answer(query, os_client)
                 try:
                     results = perform_search(os_client, query, filters=filters)
 
                     if results:
-                        st.caption(f"Keyword search · {len(results)} result(s)")
+                        st.caption(f"{len(results)} file(s)")
                         render_search_results(results, query)
                     else:
                         st.info("No results found matching your query. Try different keywords or check spelling.")
