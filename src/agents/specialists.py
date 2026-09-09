@@ -197,17 +197,25 @@ def file_agent(file_name: str, search_fn: SearchFn) -> dict[str, Any]:
 
 
 def answer_agent(query: str, context: str, history: list[dict[str, str]] | None = None) -> dict[str, Any]:
-    """Answer from context only. Cites file names or says what is missing."""
+    """Answer from context only. Cites numbered sources or says what is missing."""
     start = time.time()
     system = (
-        "You are an enterprise doc assistant. Answer only from context. "
-        "Cite exact file names. If missing, say what is missing."
+        "You are an enterprise doc assistant. Answer only from the numbered "
+        "sources in Context. Put the source number in square brackets right "
+        "after each claim, like [1]. At most two numbers per sentence. "
+        "Never cite a number not listed. If the sources lack the answer, "
+        "say what is missing."
     )
     prior = ""
     if history:
         prior = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history[-4:])
     user = f"History:\n{prior}\n\nContext:\n{context[:9000]}\n\nQuestion: {mask_pii(query)}"
     result = call_llm(system, user, agent="answer")
+    text = str(result.get("text", "") or "")
+    norm = re.sub(r"【(\d+)[^】]*】", r"[\1]", text)
+    norm = re.sub(r"\[(\d+)[†‡*]+\]", r"[\1]", norm)
+    if norm != text:
+        result["text"] = norm
     if result.get("mock"):
         ext = extractive_answer(query, context)
         if ext:
@@ -237,4 +245,6 @@ def verifier_agent(answer: str, sources: list[dict[str, Any]], query: str = "") 
     cited = any(name and name in (answer or "") for name in names)
     if cited:
         return {"ok": True, "reason": "cited source", "latency_ms": ms()}
+    if re.search(r"\[\d+\]", answer or ""):
+        return {"ok": True, "reason": "numbered citations present", "latency_ms": ms()}
     return {"ok": True, "reason": "sources present and query grounded", "latency_ms": ms()}
