@@ -140,6 +140,7 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
             friendly = _friendly_reason(reason)
             if friendly:
                 parts.append(f'<div class="doc-meta">{_html.escape(friendly)}</div>')
+        used: list[int] = []
         if chunks:
             used, _ = _chip_sources(answer, chunks)
             shown = [chunks[n - 1] for n in used if 1 <= n <= len(chunks)] or list(chunks[:1])
@@ -148,19 +149,22 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
                 label = _page_label(ch if isinstance(ch, dict) else {})
                 times = len(re.findall(rf"\[{n}\]", answer or ""))
                 cite_note = f" · cited {times} time" + ("s" if times != 1 else "") + " in the answer" if times else ""
+                about = " · ".join(t for t in (str(ch.get("category", "") or ""),
+                                               str(ch.get("department", "") or "")) if t and t != "Unclassified")
                 quote = clean_snippet(str(ch.get("text", "")), limit=180)
                 items.append(
                     f"<li>[{n}] {_html.escape(label)}{cite_note}"
+                    + (f'<br><span style="color:#374151;">About this file: {_html.escape(about)}</span>' if about else "")
                     + (f'<br><span style="color:#374151;">Exact words from the file, scan errors included: “{_html.escape(quote)}”</span>' if quote else "")
                     + "</li>"
                 )
             parts.append('<div class="doc-meta">Where this came from</div>'
                          f'<ol class="doc-meta">{"".join(items)}</ol>')
             if len(chunks) > len(shown):
-                parts.append(f'<div class="doc-meta">{len(chunks) - len(shown)} more matching file(s) below.</div>')
+                parts.append(f'<div class="doc-meta">The other {len(chunks) - len(shown)} match(es) are listed below.</div>')
+        cited_n = len(used) if chunks else 0
         parts.append(
-            f'<div class="doc-meta">Checked {len(chunks)} file(s) '
-            f"in {len(trace)} steps · cost {fmt_cost(cost)}</div>"
+            f'<div class="doc-meta">Checked {len(chunks)} file(s), {cited_n} cited · cost {fmt_cost(cost)}</div>'
         )
         parts.append("</div>")
         return "\n".join(parts)
