@@ -127,20 +127,24 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
         if reason:
             parts.append(f'<div class="doc-meta">{_html.escape(_friendly_reason(reason))}</div>')
         if chunks:
+            used, _ = _chip_sources(answer, chunks)
+            shown = [chunks[n - 1] for n in used if 1 <= n <= len(chunks)] or list(chunks[:1])
             items = []
-            for i, ch in enumerate(chunks[:5], 1):
+            for n, ch in zip(used or [1], shown):
                 name = _html.escape(str(ch.get("file_name", "unknown")))
                 page = _html.escape(str(ch.get("page_number", 1)))
                 quote = clean_snippet(str(ch.get("text", "")))
                 items.append(
-                    f"<li>[{i}] {name} p{page}"
+                    f"<li>[{n}] {name} p{page}"
                     + (f'<br><span style="color:#374151;">Quoted from the file: “{_html.escape(quote)}”</span>' if quote else "")
                     + "</li>"
                 )
             parts.append('<div class="doc-meta">Where this came from</div>'
                          f'<ol class="doc-meta">{"".join(items)}</ol>')
+            if len(chunks) > len(shown):
+                parts.append(f'<div class="doc-meta">{len(chunks) - len(shown)} more matching file(s) below.</div>')
         parts.append(
-            f'<div class="doc-meta">Built from {len(chunks)} file(s) '
+            f'<div class="doc-meta">Checked {len(chunks)} file(s) '
             f"in {len(trace)} steps · cost {fmt_cost(cost)}</div>"
         )
         parts.append("</div>")

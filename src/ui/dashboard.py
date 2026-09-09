@@ -2361,6 +2361,7 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
                 meta_parts.append(f"{metadata['page_count']} pages")
 
             ocr_label = ""
+            ocr_conf = -1.0
             try:
                 risk = float(metadata.get('overall_risk_score', ''))
                 ocr_conf = max(0.0, min(100.0, 100.0 - risk))
@@ -2368,7 +2369,8 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
             except (ValueError, TypeError):
                 pass
             status = str(metadata.get('verification_status', '') or '')
-            if status == "High Confidence":
+            # Only flag below 80%: flagging every scan makes the flag noise.
+            if ocr_conf >= 80.0:
                 meta_parts.append(f"Text readable{(' (' + ocr_label + ')') if ocr_label else ''}")
             elif status:
                 meta_parts.append(f"Needs human review{(' (' + ocr_label + ')') if ocr_label else ''}")
@@ -2389,6 +2391,7 @@ def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
             # Snippet preview
             snippet = result.get("snippet", "")
             if snippet:
+                snippet = re.sub(r'---\s*Page\s+\d+\s*---', ' ', snippet)
                 snippet_escaped = _esc(snippet)
                 snippet_html = re.sub(r'\*\*(.+?)\*\*', r'<span class="highlight">\1</span>', snippet_escaped)
                 # Demote junk highlights: 1-3 letter words and stopwords

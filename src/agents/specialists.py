@@ -212,8 +212,9 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
         "You are an enterprise doc assistant. Answer only from the numbered "
         "sources in Context. Put the source number in square brackets right "
         "after each claim, like [1]. At most two numbers per sentence. "
-        "Never cite a number not listed. If the sources lack the answer, "
-        "say what is missing."
+        "Never cite a number not listed. Only state totals exactly as "
+        "written in the sources; never add, subtract, or reconcile figures "
+        "yourself. If the sources lack the answer, say what is missing."
     )
     prior = ""
     if history:
@@ -234,6 +235,46 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
     return result
 
 
+_MONEY_TOKEN_RE = re.compile(r"[$₹€£]?\s?\d[\d,]*\.?\d*")
+
+
+def _money_like(raw: str) -> bool:
+    """True when the raw token is money-shaped: $, comma, or decimal point.
+
+    Trailing sentence periods ("10256.") are stripped first so plain IDs
+    and counts at sentence ends never count as money.
+    """
+    cleaned = re.sub(r"\.+$", "", (raw or "").strip())
+    return any(c in cleaned for c in ("$", "₹", "€", "£", ",", "."))
+
+
+def _norm_money(raw: str) -> str:
+    """Normalize one raw money token to 2-decimal form, or '' if not a number."""
+    try:
+        norm = (raw or "").replace(",", "").replace("$", "").replace("₹", "").replace("€", "").replace("£", "").strip()
+        if norm and re.search(r"\d", norm):
+            return f"{float(norm):.2f}"
+    except (ValueError, TypeError):
+        pass
+    return ""
+
+
+def _money_tokens(text: str) -> set[str]:
+    """Normalized money-ish numbers: 2,480 / $2,480 / 2480.0 all match."""
+    out: set[str] = set()
+    try:
+        for tok in _MONEY_TOKEN_RE.findall(text or ""):
+            norm = tok.replace(",", "").replace("$", "").replace("₹", "").replace("€", "").replace("£", "").strip()
+            if norm and re.search(r"\d", norm):
+                try:
+                    out.add(f"{float(norm):.2f}")
+                except (ValueError, TypeError):
+                    continue
+    except (ValueError, TypeError, AttributeError):
+        pass
+    return out
+
+
 def verifier_agent(answer: str, sources: list[dict[str, Any]], query: str = "") -> dict[str, Any]:
     """Grounding gate. ok False means retry once, then BLOCK."""
     start = time.time()
@@ -252,8 +293,26 @@ def verifier_agent(answer: str, sources: list[dict[str, Any]], query: str = "") 
         if keys and not any(k in blob for k in keys):
             return {"ok": False, "reason": "no grounding for query terms, blocked", "latency_ms": ms()}
     cited = any(name and name in (answer or "") for name in names)
+    numbered = re.search(r"\[\d+\]", answer or "")
     if cited:
-        return {"ok": True, "reason": "cited source", "latency_ms": ms()}
-    if re.search(r"\[\d+\]", answer or ""):
-        return {"ok": True, "reason": "numbered citations present", "latency_ms": ms()}
-    return {"ok": True, "reason": "sources present and query grounded", "latency_ms": ms()}
+        cited_ok: dict[str, Any] = {"ok": True, "reason": "cited source", "latency_ms": ms()}
+    elif numbered:
+        cited_ok = {"ok": True, "reason": "numbered citations present", "latency_ms": ms()}
+    else:
+        return {"ok": True, "reason": "sources present and query grounded", "latency_ms": ms()}
+    # Money faithfulness: every amount in the answer must occur in the
+    # cited chunks. Catches invented totals and bad mental arithmetic.
+    # Only money-shaped tokens count ($, comma, or decimal point), so years,
+    # counts, and [N] citation markers never trip the gate.
+    cited_chunks = [s for s in sources]
+    pool = " ".join(_norm_text(s) for s in cited_chunks)
+    pool_money = {t for raw in _MONEY_TOKEN_RE.findall(pool) if _money_like(raw)
+                  for t in [_norm_money(raw)] if t}
+    answer_nomarkers = re.sub(r"\[\d+\]", " ", answer or "")
+    for raw in _MONEY_TOKEN_RE.findall(answer_nomarkers):
+        if not _money_like(raw):
+            continue
+        amt = _norm_money(raw)
+        if amt and amt not in pool_money:
+            return {"ok": False, "reason": f"amount {amt} not found in cited sources, blocked", "latency_ms": ms()}
+    return cited_ok

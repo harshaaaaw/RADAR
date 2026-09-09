@@ -40,4 +40,15 @@ assert _cosine([1.0, 0.0], [0.0, 1.0]) == 0.0
 assert _cosine([], [1.0]) == 0.0
 assert _cosine(None, None) == 0.0
 
+# money gate: invented totals block, stated figures pass, IDs never trip it
+from agents.specialists import verifier_agent
+
+good_src = [{"file_name": "a.pdf", "text": "Total balance due $937.40 for invoice 10256"}]
+v = verifier_agent("Balance due $937.40 [a.pdf]", good_src, "total?")
+assert v["ok"], v
+v = verifier_agent("Balance due $10,967.40 [a.pdf]", good_src, "total?")
+assert not v["ok"] and "amount" in v["reason"], v
+v = verifier_agent("Invoice 10256 is ready. Year 2026. [a.pdf]", good_src, "invoice?")
+assert v["ok"], v
+
 print("SEMANTIC_CHECKS_OK")
