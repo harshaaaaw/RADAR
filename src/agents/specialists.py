@@ -49,12 +49,22 @@ def _split_sentences(text: str) -> list[str]:
 
     Naive period-splitting turns "Rs. 45,000" into a dangling "Rs."
     fragment; pieces ending in a known abbreviation rejoin the next one.
+    Also splits on newlines and on clause starts signalled by a capital
+    letter after a lowercase word (OCR often drops sentence punctuation),
+    so two unrelated clauses never get glued into one "sentence".
     Never raises.
     """
     try:
+        # First split on explicit sentence punctuation and newlines.
         raw = [s for s in _SENT_SPLIT_RE.split(text or "") if s and s.strip()]
-        out: list[str] = []
+        # Then split any fragment that starts a new clause mid-run on a
+        # lowercase->Capital boundary (ignores the very first word).
+        expanded: list[str] = []
         for piece in raw:
+            parts = re.split(r"(?<=[a-z])\.\s+(?=[A-Z])|(?<=\))\s+(?=[A-Z])", piece.strip())
+            expanded.extend(p for p in parts if p and p.strip())
+        out: list[str] = []
+        for piece in expanded:
             if out and _ABBR_END_RE.search(out[-1].strip()):
                 out[-1] = out[-1].rstrip() + " " + piece.strip()
             else:
@@ -234,6 +244,23 @@ def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
             text = _PAGE_HEADER_RE.sub(" ", text)
             for sent in _split_sentences(text):
                 sent = " ".join(sent.split())
+                # Reject obvious glued/truncated OCR clauses: when a fragment is
+                # long and lacks any sentence terminator AND contains a glued
+                # lowercase run ("You are requi the 'Mini Interest..."), it is
+                # OCR noise, not an answer. Short factual phrases ("amount due
+                # 2480 payment terms net 30") are kept even without punctuation.
+                stripped = sent.rstrip()
+                if len(sent) > 70 and not stripped.endswith((".", "!", "?")):
+                    continue
+                # Reject fragments with obvious repeated-phrase noise only when
+                # long enough that a repeat is definitely duplication, not a
+                # coincidental bigram ("Interest and Penalties Interest...").
+                low_nospace = re.sub(r"[^a-z ]", " ", sent.lower())
+                toks = low_nospace.split()
+                if len(toks) >= 9:
+                    bigrams = set(zip(toks, toks[1:]))
+                    if len(bigrams) < len(toks) - 1:  # duplicate bigram present
+                        continue
                 # cap length: a blob above 180 chars is form-rug/letterhead,
                 # not an answer sentence. Keep it only if richly relevant.
                 if len(sent) < 25 or len(sent) > 180:
@@ -261,8 +288,11 @@ def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
         for score, sent, num in scored:
             if len(picked) >= max_sentences:
                 break
-            picked.append(f"{sent} [{num}]")
-        return " ".join(picked)[:1200]
+            clean = sent.rstrip(". ").strip()
+            picked.append(f"{clean} [{num}]")
+        # Join as separate sentences (period + space), never a bare space that
+        # could fuse two unrelated clauses into one run-on.
+        return ". ".join(picked)[:1200]
     except (ValueError, TypeError, AttributeError):
         return ""
 

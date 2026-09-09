@@ -25,9 +25,12 @@ BLOCK_MESSAGE = "Blocked: low confidence or no grounding. Needs human review."
 class AgentGraph:
     """Answer questions over indexed docs. Services stay injected."""
 
-    def __init__(self, search_fn: SearchFn, counts_fn: CountsFn) -> None:
+    def __init__(self, search_fn: SearchFn, counts_fn: CountsFn, api_key: str = "") -> None:
         self.search_fn = search_fn
         self.counts_fn = counts_fn
+        # api_key defaults to "" so callers (and tests) get the deterministic
+        # offline/extractive path. The live Ask API injects GROQ_API_KEY.
+        self.api_key = api_key
 
     def run(self, query: str, history: list[dict[str, str]] | None = None) -> dict[str, Any]:
         """Run router to verdict. Never raises; failures become BLOCK."""
@@ -74,7 +77,10 @@ class AgentGraph:
                 name = chunk.get("file_name")
                 page = chunk.get("page_number")
                 blocks.append(f"Source [{i + 1}] {name} p{page}: {chunk.get('text')}")
-            answer = specialists.answer_agent(current_query, "\n\n".join(blocks), history)
+            answer = specialists.answer_agent(
+                current_query, "\n\n".join(blocks), history,
+                api_key=self.api_key,
+            )
             total_tokens += int(answer.get("tokens", 0))
             total_cost += float(answer.get("cost_usd", 0.0))
             trace.append({"node": "answer", "tokens": answer["tokens"], "mock": answer["mock"],

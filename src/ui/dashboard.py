@@ -738,6 +738,123 @@ def render_dashboard() -> None:
     # Custom CSS for better styling
     st.markdown("""
         <style>
+        /* ============================================================
+           Wide-balanced layout (Mintlify grid: max content ~1200px)
+           - Search is an Explore surface: answer first, evidence second,
+             using the full container width. No narrow center-stack.
+           - layout="wide" + sidebar visible; container capped at 1200px
+             so cards span nicely without dead margins on either side.
+           ============================================================ */
+        .stApp {
+            background: #fbfbfc;
+        }
+        .block-container {
+            max-width: 1200px;
+            margin: 0 auto !important;
+            padding-left: 2rem;
+            padding-right: 2rem;
+            padding-top: 2.5rem;
+        }
+        .answer-card {
+            background: #ffffff;
+            border: 1px solid rgba(16,24,40,0.08);
+            border-radius: 16px;
+            box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 10px 30px rgba(16,24,40,0.06);
+            padding: 1.5rem 1.6rem;
+        }
+        .answer-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.9rem;
+        }
+        .answer-kicker {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+        }
+        .answer-badge {
+            font-size: 0.76rem;
+            font-weight: 500;
+            border-radius: 999px;
+            padding: 0.18rem 0.7rem;
+            white-space: nowrap;
+        }
+        .answer-body {
+            font-size: 1.02rem;
+            color: #1f2937;
+            line-height: 1.6;
+            max-width: 68ch;
+        }
+        .answer-body p { margin: 0 0 0.7rem; }
+        .cite-chip {
+            color: #0f766e;
+            font-weight: 600;
+            cursor: help;
+        }
+        .answer-sources { display: flex; flex-direction: column; gap: 0.5rem; }
+        .src-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.65rem;
+            padding: 0.65rem 0.8rem;
+            background: #ffffff;
+            border: 1px solid rgba(16,24,40,0.08);
+            border-radius: 12px;
+            transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+        }
+        .src-card:hover {
+            border-color: rgba(15,118,110,0.35);
+            box-shadow: 0 2px 6px rgba(16,24,40,0.06), 0 10px 26px rgba(16,24,40,0.08);
+            transform: translateY(-1px);
+        }
+        .src-num {
+            flex: 0 0 auto;
+            width: 1.5rem; height: 1.5rem;
+            border-radius: 999px;
+            background: #0f766e;
+            color: #ffffff;
+            font-size: 0.8rem; font-weight: 600;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .src-name { font-size: 0.92rem; font-weight: 500; color: #0d0d0d; }
+        .src-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.25rem; }
+        .src-tag {
+            font-size: 0.72rem; font-weight: 500; color: #555555;
+            background: #f5f5f5; border: 1px solid rgba(16,24,40,0.06);
+            border-radius: 999px; padding: 0.05rem 0.5rem;
+        }
+        .src-tag-cite { color: #0b7a55; background: #d4fae8; border-color: rgba(11,122,85,0.18); }
+        .ev-quote summary { cursor: pointer; color: #0f766e; font-size: 0.82rem; display: flex; align-items: center; gap: 0.3rem; }
+        .ev-ico { font-size: 1rem; line-height: 1; color: #0f766e; }
+        .ev-quote p {
+            background: #fafafa; border: 1px solid rgba(16,24,40,0.05);
+            border-radius: 8px; padding: 0.6rem 0.75rem;
+            font-size: 0.82rem; color: #4b5563; line-height: 1.55; margin: 0.3rem 0 0;
+        }
+        .answer-foot { font-size: 0.78rem; color: #9ca3af; margin-top: 0.9rem; }
+        .radar-divider { border: none; border-top: 1px solid rgba(16,24,40,0.08); margin: 1.4rem 0; }
+        .radar-files-head {
+            font-size: 0.78rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.06em; color: #6b7280; margin-bottom: 0.7rem;
+        }
+        .doc-card {
+            background: #ffffff;
+            border: 1px solid rgba(16,24,40,0.08);
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 6px 18px rgba(16,24,40,0.05);
+            transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+        }
+        .doc-card:hover {
+            border-color: rgba(15,118,110,0.3);
+            box-shadow: 0 2px 4px rgba(16,24,40,0.06), 0 10px 28px rgba(16,24,40,0.09);
+            transform: translateY(-1px);
+        }
         .main > div {
             padding-top: 2rem;
         }
@@ -770,13 +887,6 @@ def render_dashboard() -> None:
             padding: 0.1rem 0.2rem; 
             border-radius: 3px; 
             font-weight: 500; 
-        }
-        .doc-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 0.75rem;
-            background: white;
         }
         .doc-filename {
             font-weight: 600;
@@ -815,70 +925,7 @@ def render_dashboard() -> None:
             color: #0f766e;
             font-weight: 600;
         }
-        /* Answer card: Mintlify reading vocabulary. Hairline borders carry
-           the depth, one accent, three weights, quiet micro-labels. */
-        .answer-card {
-            background: #ffffff;
-            border: 1px solid rgba(0,0,0,0.08);
-            border-radius: 16px;
-            box-shadow: rgba(0,0,0,0.03) 0px 2px 4px;
-            padding: 1.4rem 1.5rem;
-        }
-        .answer-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-            margin-bottom: 0.8rem;
-        }
-        .answer-kicker {
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #666666;
-        }
-        .answer-badge {
-            font-size: 0.78rem;
-            font-weight: 500;
-            border-radius: 999px;
-            padding: 0.15rem 0.7rem;
-            white-space: nowrap;
-        }
-        .answer-title {
-            font-weight: 600;
-            font-size: 1.05rem;
-            color: #0d0d0d;
-        }
-        .answer-query {
-            font-size: 1rem;
-            font-weight: 500;
-            color: #0d0d0d;
-            margin: 0.1rem 0 0.6rem;
-        }
-        .answer-body {
-            font-size: 1rem;
-            color: #333333;
-            line-height: 1.5;
-            max-width: 72ch;
-        }
-        .answer-body p {
-            margin: 0 0 0.7rem;
-        }
-        .answer-body table {
-            border-collapse: collapse;
-            margin: 0.5rem 0;
-            font-size: 0.9rem;
-        }
-        .answer-body th, .answer-body td {
-            border: 1px solid #e5e7eb;
-            padding: 0.35rem 0.6rem;
-            text-align: left;
-        }
-        .answer-body th {
-            background: #f0f2f6;
-            font-weight: 600;
-        }
+        /* Answer card micro-labels (Perplexity-inspired reading vocabulary) */
         .answer-note {
             font-size: 0.85rem;
             color: #666666;
@@ -892,92 +939,6 @@ def render_dashboard() -> None:
             color: #666666;
             margin-top: 1.1rem;
             margin-bottom: 0.5rem;
-        }
-        .answer-sources {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .src-card {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.6rem;
-            padding: 0.6rem 0.75rem;
-            background: #ffffff;
-            border: 1px solid rgba(0,0,0,0.08);
-            border-radius: 12px;
-        }
-        .src-num {
-            flex: 0 0 auto;
-            width: 1.5rem;
-            height: 1.5rem;
-            border-radius: 999px;
-            background: #0f766e;
-            color: #ffffff;
-            font-size: 0.8rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .src-main {
-            min-width: 0;
-        }
-        .src-name {
-            font-size: 0.92rem;
-            font-weight: 500;
-            color: #0d0d0d;
-        }
-        .src-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.3rem;
-            margin-top: 0.25rem;
-        }
-        .src-tag {
-            font-size: 0.72rem;
-            font-weight: 500;
-            color: #555555;
-            background: #f5f5f5;
-            border: 1px solid rgba(0,0,0,0.06);
-            border-radius: 999px;
-            padding: 0.05rem 0.5rem;
-        }
-        .src-tag-cite {
-            color: #0b7a55;
-            background: #d4fae8;
-            border-color: rgba(11,122,85,0.18);
-        }
-        .ev-quote {
-            margin-top: 0.3rem;
-        }
-        .ev-quote summary {
-            cursor: pointer;
-            color: #0f766e;
-            font-size: 0.82rem;
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-        .ev-ico {
-            font-size: 1rem;
-            line-height: 1;
-            color: #0f766e;
-        }
-        .ev-quote p {
-            background: #fafafa;
-            border: 1px solid rgba(0,0,0,0.05);
-            border-radius: 8px;
-            padding: 0.6rem 0.75rem;
-            font-size: 0.82rem;
-            color: #4b5563;
-            line-height: 1.55;
-            margin: 0.3rem 0 0;
-        }
-        .answer-foot {
-            font-size: 0.78rem;
-            color: #888888;
-            margin-top: 0.9rem;
         }
         .how-built {
             margin-top: 0.9rem;
@@ -1022,15 +983,15 @@ def render_dashboard() -> None:
     st.title("Document Retrieval System")
     
     
-    # Sidebar - different content based on selected tab
-    render_sidebar(config, os_client, queue_manager)
-    
     # Main view selector (avoid rendering both views on every refresh)
     view = st.radio("View", ["Search", "Live Audit", "Snippet Review", "System Monitor"], horizontal=True, key="main_view_selector")
 
     # Clear review tab state when navigating away to prevent stale pagination
     if view != "Snippet Review":
         st.session_state.pop("_review_tab_loaded", None)
+
+    # Sidebar stays visible on all views (stats + diagnostics live here).
+    render_sidebar(config, os_client, queue_manager)
 
     if view == "Search":
         render_search_tab(config, os_client)
@@ -1360,7 +1321,12 @@ def _get_filter_options(os_client: Optional[OpenSearchClient], field: str) -> Li
 
 
 def _render_universal_answer(query: str, os_client: Any) -> None:
-    """Semantic answer card above the keyword file list. Never breaks search."""
+    """Semantic answer card above the keyword file list. Never breaks search.
+
+    Rendered inside the centered .radar-reader column so the answer and the
+    file list below it share one premium reading width instead of hugging the
+    left edge.
+    """
     try:
         from api.ask_api import AskRequest, ask, configure
         from api.prod_wiring import build_prod_counts_fn, build_prod_search_fn
@@ -1480,7 +1446,8 @@ def render_search_tab(config: Any, os_client: Optional[OpenSearchClient]) -> Non
         if query and len(query) >= 2:
             with st.spinner("Searching..."):
                 _render_universal_answer(query, os_client)
-                st.divider()
+                st.markdown('<hr class="radar-divider">', unsafe_allow_html=True)
+                st.markdown('<div class="radar-files-head">All matching files</div>', unsafe_allow_html=True)
                 try:
                     results = perform_search(os_client, query, filters=filters)
 
@@ -2529,13 +2496,15 @@ def get_downloadable_text(result: Dict[str, Any]) -> str:
 
 
 def render_search_results(results: List[Dict[str, Any]], query: str) -> None:
-    """Render search results with highlighting and OCR indicators."""
+    """Render search results with highlighting and OCR indicators.
+
+    The "All matching files" header is rendered by the caller inside the
+    centered reader column, so this function omits its own duplicate heading.
+    """
     if not results:
         st.info(f"No documents found matching '{query}'")
         return
-    
-    st.markdown(f"### Matching files ({len(results)})")
-    
+
     for i, result in enumerate(results):
         with st.container():
             st.markdown('<div class="doc-card">', unsafe_allow_html=True)

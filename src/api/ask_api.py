@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import os
 from pathlib import Path
 from typing import Any
 
@@ -72,7 +73,11 @@ def ask(req: AskRequest) -> dict[str, Any]:
     def search_fn(q: str, f: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         return _tenant_search(q, f, tenant)
 
-    graph = AgentGraph(search_fn=search_fn, counts_fn=_tenant_counts)
+    graph = AgentGraph(
+        search_fn=search_fn,
+        counts_fn=_tenant_counts,
+        api_key=os.environ.get("GROQ_API_KEY", ""),
+    )
     result = graph.run(req.query)
 
     sources = result.get("sources", [])[:top_k]
