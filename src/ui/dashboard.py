@@ -815,6 +815,131 @@ def render_dashboard() -> None:
             color: #1f77b4;
             font-weight: 700;
         }
+        /* Answer card: question first, answer on white, evidence subordinate */
+        .answer-card {
+            border: 1px solid #d1d5db;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .answer-top {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.3rem;
+        }
+        .answer-title {
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: #111827;
+        }
+        .answer-query {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #111827;
+            margin: 0.1rem 0 0.6rem;
+        }
+        .answer-body {
+            font-size: 0.95rem;
+            color: #1f2937;
+            line-height: 1.65;
+            max-width: 72ch;
+        }
+        .answer-body table {
+            border-collapse: collapse;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+        .answer-body th, .answer-body td {
+            border: 1px solid #e5e7eb;
+            padding: 0.35rem 0.6rem;
+            text-align: left;
+        }
+        .answer-body th {
+            background: #f0f2f6;
+            font-weight: 600;
+        }
+        .answer-note {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+        }
+        .answer-evidence-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+            margin-top: 1rem;
+        }
+        .answer-evidence {
+            margin: 0.3rem 0;
+            padding-left: 1.3rem;
+            font-size: 0.88rem;
+            color: #374151;
+        }
+        .answer-evidence li {
+            margin-bottom: 0.4rem;
+        }
+        .ev-file {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .ev-cite, .ev-about {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+        .ev-quote {
+            margin-top: 0.2rem;
+        }
+        .ev-quote summary {
+            cursor: pointer;
+            color: #1f77b4;
+            font-size: 0.85rem;
+        }
+        .ev-quote p {
+            background: #f9fafb;
+            border-radius: 6px;
+            padding: 0.6rem 0.75rem;
+            font-size: 0.85rem;
+            color: #4b5563;
+            line-height: 1.55;
+            margin: 0.3rem 0 0;
+        }
+        .answer-foot {
+            font-size: 0.78rem;
+            color: #9ca3af;
+            margin-top: 0.7rem;
+        }
+        .src-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            margin: 0.1rem 0 0.65rem;
+        }
+        .src-pill {
+            font-size: 0.78rem;
+            color: #1f2937;
+            background: #f0f2f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            padding: 0.1rem 0.6rem;
+            white-space: nowrap;
+        }
+        .how-built {
+            margin-top: 0.7rem;
+            font-size: 0.85rem;
+            color: #4b5563;
+        }
+        .how-built summary {
+            cursor: pointer;
+            color: #1f77b4;
+            font-size: 0.85rem;
+        }
+        .how-built ol {
+            margin: 0.3rem 0;
+            padding-left: 1.3rem;
+        }
+        .how-built li {
+            margin-bottom: 0.15rem;
+        }
         /* Answer vs files separation + calmer controls */
         hr {
             margin: 1.5rem 0;
@@ -1189,10 +1314,12 @@ def _render_universal_answer(query: str, os_client: Any) -> None:
             search_fn=build_prod_search_fn(os_client),
             counts_fn=build_prod_counts_fn(os_client),
         )
-        verdict = ask(AskRequest(query=query, tenant_id="default"))
+        verdict = None
+        with st.spinner("Reading your files…"):
+            verdict = ask(AskRequest(query=query, tenant_id="default"))
         if isinstance(verdict, dict) and (verdict.get("answer") or verdict.get("verdict")):
             st.markdown(verdict_to_markdown(verdict, query), unsafe_allow_html=True)
-            st.markdown("---")
+            st.markdown("<div style='height:0.6rem'></div>", unsafe_allow_html=True)
     except Exception:
         pass
 

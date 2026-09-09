@@ -162,6 +162,57 @@ def render_cited_answer(answer: str, chunks: list) -> str:
         return _html2.escape(answer or "")
 
 
+_STEP_WORDS = (
+    ("router", "Understood the question"),
+    ("retrieval", "Searched the files"),
+    ("analytics", "Counted the collection"),
+    ("file-lead", "Read the best file end to end"),
+    ("file", "Read a file end to end"),
+    ("answer", "Wrote the answer from the files"),
+    ("rewrite", "Rewrote and rechecked"),
+    ("verifier", "Checked every claim against its file"),
+)
+
+
+def _short_name(name: str, limit: int = 30) -> str:
+    try:
+        s = str(name or "")
+        return s if len(s) <= limit else s[: limit - 1] + "…"
+    except (ValueError, TypeError, AttributeError):
+        return ""
+
+
+def _build_steps(trace: list) -> list[str]:
+    """Plain-words research steps from the agent trace. Never raises."""
+    steps: list[str] = []
+    try:
+        words = dict(_STEP_WORDS)
+        for t in trace or []:
+            if not isinstance(t, dict):
+                continue
+            node = str(t.get("node", "") or "")
+            label = words.get(node, "")
+            if not label:
+                continue
+            if node == "retrieval" and t.get("count") is not None:
+                try:
+                    label += f" ({int(t['count'])} hits)"
+                except (ValueError, TypeError):
+                    pass
+            if node in ("file", "file-lead") and t.get("file"):
+                label += f": {_short_name(t['file'], 36)}"
+            if node == "rewrite" and t.get("attempt") is not None:
+                try:
+                    label += f" (try {int(t['attempt']) + 1})"
+                except (ValueError, TypeError):
+                    pass
+            if label not in steps:
+                steps.append(label)
+    except (ValueError, TypeError, AttributeError):
+        pass
+    return steps
+
+
 def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
     """Format a verdict dict as an HTML card reusing the dashboard vocabulary.
 
@@ -176,7 +227,7 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
         status = str(verdict.get("verdict", verdict.get("decision", "UNKNOWN"))).upper()
         answer = str(verdict.get("answer", ""))
         cost = float(verdict.get("cost_usd", 0.0))
-        chunks = verdict.get("chunks", []) or []
+        chunks = verdict.get("chunks", []) or verdict.get("sources", []) or []
         reason = str(verdict.get("reason", ""))
         if status == "CERTIFY":
             color, headline = "#047857", "Answer from your documents"
@@ -185,21 +236,23 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
         else:
             color, headline = "#b45309", "Something went wrong"
         parts = [
-            '<div class="doc-card">',
-            f'<div class="doc-filename">{_html.escape(headline)} '
-            f'<span class="doc-meta" style="border:1px solid {color};border-radius:4px;'
-            f'padding:0 6px;color:{color};">{_html.escape(status)}</span></div>',
-            f'<div class="doc-meta">You asked: {_html.escape(query)}</div>',
-            f'<div class="result-snippet">{render_cited_answer(answer, chunks) if answer else "<i>Nothing to show, flagged for human review. Try fewer words, or open the matching files below.</i>"}</div>',
+            '<div class="doc-card answer-card">',
+            f'<div class="answer-top"><span class="answer-title">{_html.escape(headline)}</span> '
+            f'<span class="answer-badge" style="border:1px solid {color};border-radius:4px;'
+            f'padding:0 6px;color:{color};font-size:0.8rem;">{_html.escape(status)}</span></div>',
+            f'<div class="answer-query">{_html.escape(query)}</div>',
+            f'<div class="answer-body">{render_cited_answer(answer, chunks) if answer else "<i>Nothing to show, flagged for human review. Try fewer words, or open the matching files below.</i>"}</div>',
         ]
         if reason:
             friendly = _friendly_reason(reason)
             if friendly:
-                parts.append(f'<div class="doc-meta">{_html.escape(friendly)}</div>')
+                parts.append(f'<div class="answer-note">{_html.escape(friendly)}</div>')
         used: list[int] = []
+        others = 0
         if chunks:
             used, _ = _chip_sources(answer, chunks)
             shown = [chunks[n - 1] for n in used if 1 <= n <= len(chunks)] or list(chunks[:1])
+            others = len(chunks) - len(shown)
             items = []
             for n, ch in zip(used or [1], shown):
                 label = _page_label(ch if isinstance(ch, dict) else {})
@@ -209,19 +262,38 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
                                                str(ch.get("department", "") or "")) if t and t != "Unclassified")
                 quote = clean_snippet(str(ch.get("text", "")), limit=180)
                 items.append(
-                    f"<li>[{n}] {_html.escape(label)}{cite_note}"
-                    + (f'<br><span style="color:#374151;">About this file: {_html.escape(about)}</span>' if about else "")
-                    + (f'<br><span style="color:#374151;">Exact words from the file, scan errors included: “{_html.escape(quote)}”</span>' if quote else "")
+                    f'<li><span class="ev-file">[{n}] {_html.escape(label)}</span>'
+                    f'<span class="ev-cite">{_html.escape(cite_note)}</span>'
+                    + (f'<br><span class="ev-about">About this file: {_html.escape(about)}</span>' if about else "")
+                    + (f'<details class="ev-quote"><summary>Exact words from the file, scan errors included</summary>'
+                       f'<p>“{_html.escape(quote)}”</p></details>' if quote else "")
                     + "</li>"
                 )
-            parts.append('<div class="doc-meta">Where this came from</div>'
-                         f'<ol class="doc-meta">{"".join(items)}</ol>')
-            if len(chunks) > len(shown):
-                parts.append(f'<div class="doc-meta">The other {len(chunks) - len(shown)} match(es) are listed below.</div>')
+            parts.append('<div class="answer-evidence-label">Where this came from</div>'
+                         f'<ol class="answer-evidence">{"".join(items)}</ol>')
+            pills = []
+            for n in used or [1]:
+                if 1 <= n <= len(chunks):
+                    ch = chunks[n - 1] if isinstance(chunks[n - 1], dict) else {}
+                    nm = _short_name(_page_label(ch), 28)
+                    times = len(re.findall(rf"\[{n}\]", answer or ""))
+                    tag = f" ×{times}" if times > 1 else ""
+                    pills.append(
+                        f'<span class="src-pill" title="{_html.escape(_page_label(ch))}">'
+                        f'[{n}] {_html.escape(nm)}{_html.escape(tag)}</span>')
+            if pills:
+                parts.insert(3, f'<div class="src-strip">{"".join(pills)}</div>')
+        steps = _build_steps(verdict.get("trace", []))
+        if steps:
+            lis = "".join(f"<li>{_html.escape(s)}</li>" for s in steps)
+            parts.append(
+                '<details class="how-built"><summary>How this answer was built</summary>'
+                f"<ol>{lis}</ol></details>")
         cited_n = len(used) if chunks else 0
-        parts.append(
-            f'<div class="doc-meta">Checked {len(chunks)} file(s), {cited_n} cited · cost {fmt_cost(cost)}</div>'
-        )
+        foot = f'Checked {len(chunks)} file(s), {cited_n} cited · cost {fmt_cost(cost)}'
+        if others > 0:
+            foot += f' · {others} more file{"s" if others != 1 else ""} below'
+        parts.append(f'<div class="answer-foot">{foot}</div>')
         parts.append("</div>")
         return "\n".join(parts)
     except (ValueError, TypeError, AttributeError):
