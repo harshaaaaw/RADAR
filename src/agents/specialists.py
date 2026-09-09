@@ -218,7 +218,11 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
         "after each claim, like [1]. At most two numbers per sentence. "
         "Never cite a number not listed. Only state totals exactly as "
         "written in the sources; never add, subtract, or reconcile figures "
-        "yourself. Never state page numbers, only source numbers like [1]. "
+        "yourself, and never describe how figures relate to each other "
+        "(no 'resulting in', 'netting to', 'which gives'). When the answer "
+        "lists several figures, present them as a short markdown table "
+        "with columns item, amount, source. "
+        "Never state page numbers, only source numbers like [1]. "
         "If the sources lack the answer, say what is missing."
     )
     prior = ""

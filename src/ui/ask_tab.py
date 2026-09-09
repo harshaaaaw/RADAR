@@ -10,8 +10,8 @@ import re
 from typing import Any
 
 _FRIENDLY_REASONS = {
-    "cited source": "The answer quotes the files listed below.",
-    "numbered citations present": "Each number in the answer points to the file it came from.",
+    "cited source": "The answer quotes the file below.",
+    "numbered citations present": "",
     "sources present and query grounded": "The answer is drawn from the files listed below.",
     "answer service not configured, connect an LLM key for written answers":
         "Written answers need an LLM key. The matching files below still work.",
@@ -137,7 +137,9 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
             f'<div class="result-snippet">{render_cited_answer(answer, chunks) if answer else "<i>Nothing to show, flagged for human review. Try fewer words, or open the matching files below.</i>"}</div>',
         ]
         if reason:
-            parts.append(f'<div class="doc-meta">{_html.escape(_friendly_reason(reason))}</div>')
+            friendly = _friendly_reason(reason)
+            if friendly:
+                parts.append(f'<div class="doc-meta">{_html.escape(friendly)}</div>')
         if chunks:
             used, _ = _chip_sources(answer, chunks)
             shown = [chunks[n - 1] for n in used if 1 <= n <= len(chunks)] or list(chunks[:1])
@@ -145,11 +147,11 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
             for n, ch in zip(used or [1], shown):
                 label = _page_label(ch if isinstance(ch, dict) else {})
                 times = len(re.findall(rf"\[{n}\]", answer or ""))
-                quote = clean_snippet(str(ch.get("text", "")))
+                cite_note = f" · cited {times} time" + ("s" if times != 1 else "") + " in the answer" if times else ""
+                quote = clean_snippet(str(ch.get("text", "")), limit=180)
                 items.append(
-                    f"<li>[{n}] {_html.escape(label)}"
-                    + (f" · cited {times} time(s) in the answer" if times else "")
-                    + (f'<br><span style="color:#374151;">Quoted from the file: “{_html.escape(quote)}”</span>' if quote else "")
+                    f"<li>[{n}] {_html.escape(label)}{cite_note}"
+                    + (f'<br><span style="color:#374151;">Exact words from the file, scan errors included: “{_html.escape(quote)}”</span>' if quote else "")
                     + "</li>"
                 )
             parts.append('<div class="doc-meta">Where this came from</div>'
