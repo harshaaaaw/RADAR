@@ -27,6 +27,98 @@ CountsFn = Callable[[], dict[str, Any]]
 _STOPWORDS = {"what", "which", "how", "many", "tell", "about", "does", "have",
               "with", "from", "that", "this"}
 
+_MONEY_HINT_RE = re.compile(r"[$₹€£]\s?[\d,]+(?:\.\d+)?|\b\d[\d,]*\.\d{2}\b")
+_DATE_HINT_RE = re.compile(
+    r"\b(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|"
+    r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{2,4})\b",
+    re.IGNORECASE,
+)
+_PROPER_HINT_RE = re.compile(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b")
+_SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def _question_type(query: str) -> str:
+    words = set(re.findall(r"[a-z]+", (query or "").lower()))
+    phrases = (query or "").lower()
+    if words & {"total", "amount", "cost", "price", "due", "balance"} or "how much" in phrases:
+        return "money"
+    if words & {"when", "date", "period"} or "due date" in phrases:
+        return "date"
+    if words & {"who", "vendor", "supplier"} or "which company" in phrases or "sent" in words or "from whom" in phrases:
+        return "who"
+    if "how many" in phrases or "number of" in phrases or ("count" in words and "account" not in words):
+        return "count"
+    return "general"
+
+
+def _context_pieces(context: str) -> tuple[list[tuple[str, str]], str]:
+    """Split joined context into (file_name, text) pieces plus analytics text."""
+    pieces: list[tuple[str, str]] = []
+    analytics = ""
+    for block in (context or "").split("\n\n"):
+        block = block.strip()
+        if not block:
+            continue
+        if block.startswith("ANALYTICS:"):
+            analytics = block[len("ANALYTICS:"):].strip()
+            continue
+        m = re.match(r"Source \[\d+\]\s+(.*?)\s+p\d+:\s*(.*)", block, re.DOTALL)
+        if m:
+            pieces.append((m.group(1).strip(), m.group(2).strip()))
+            continue
+        m2 = re.match(r"FULL DOCUMENT (.*?):\s*(.*)", block, re.DOTALL)
+        if m2:
+            pieces.append((m2.group(1).strip(), m2.group(2).strip()))
+    return pieces, analytics
+
+
+def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
+    """Answer from retrieved sentences when no LLM key is configured.
+
+    Scores sentences by query-term overlap plus question-type bonuses
+    (money / date / proper-name). Every sentence carries its file name so
+    the verifier citation check and the user both see provenance.
+    Returns "" when nothing scores above noise. Never raises.
+    """
+    try:
+        pieces, analytics = _context_pieces(context)
+        if not pieces:
+            return ""
+        terms = [w.lower() for w in re.findall(r"[A-Za-z]{4,}", query or "")
+                 if w.lower() not in _STOPWORDS]
+        qtype = _question_type(query)
+        if qtype == "count" and analytics and re.search(r"\d", analytics):
+            return f"Repository counts: {analytics[:300]}"
+        scored: list[tuple[float, str, str]] = []
+        for name, text in pieces:
+            for sent in _SENT_SPLIT_RE.split(text):
+                sent = " ".join(sent.split())
+                if len(sent) < 25 or len(sent) > 500:
+                    continue
+                low = sent.lower()
+                score = sum(2.0 for t in terms if t in low)
+                if qtype == "money" and _MONEY_HINT_RE.search(sent):
+                    score += 4.0
+                if qtype == "date" and _DATE_HINT_RE.search(sent):
+                    score += 4.0
+                if qtype == "who" and _PROPER_HINT_RE.search(sent):
+                    score += 3.0
+                if score >= 2.0:
+                    scored.append((score, sent, name))
+        if not scored:
+            return ""
+        scored.sort(key=lambda s: -s[0])
+        picked: list[str] = []
+        used_files: set[str] = set()
+        for score, sent, name in scored:
+            if len(picked) >= max_sentences:
+                break
+            picked.append(f"{sent} [{name}]")
+            used_files.add(name)
+        return " ".join(picked)[:1200]
+    except (ValueError, TypeError, AttributeError):
+        return ""
+
 
 def _norm_text(row: dict[str, Any]) -> str:
     """Return searchable text across prod (text) and API (chunk_text) shapes."""
@@ -116,6 +208,11 @@ def answer_agent(query: str, context: str, history: list[dict[str, str]] | None 
         prior = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history[-4:])
     user = f"History:\n{prior}\n\nContext:\n{context[:9000]}\n\nQuestion: {mask_pii(query)}"
     result = call_llm(system, user, agent="answer")
+    if result.get("mock"):
+        ext = extractive_answer(query, context)
+        if ext:
+            result = {"text": ext, "tokens": len(ext.split()), "cost_usd": 0.0,
+                      "mock": True, "extractive": True, "agent": "answer"}
     result["latency_ms"] = int((time.time() - start) * 1000)
     return result
 

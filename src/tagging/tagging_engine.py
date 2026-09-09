@@ -1,9 +1,15 @@
 """
-Local hybrid tagging engine (rules + taxonomy semantics + optional spaCy NER).
+Local hybrid tagging engine (rules + taxonomy semantics + embedding similarity).
+
+Semantic scoring is embedding cosine over label descriptions (offline hash
+vectors via indexing.embeddings, BGE-ready). spaCy is only used for NER
+enrichments (names, amounts, dates) when a model is installed — scoring
+never depends on it.
 """
 
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -37,8 +43,9 @@ _NOT_PREFIX_RE = re.compile(r"\bnot\s+confidential\b", re.IGNORECASE)
 _UNRESTRICTED_RE = re.compile(r"\bunrestricted\b", re.IGNORECASE)
 
 # T2: Maximum theoretical raw score for normalization
-# Fix #8: SpaCy is now primary brain with higher weights
-_MAX_RAW_SCORE = 2.0  # semantic(0.55) + entity_align(0.20) + noun_chunk(0.40) + alias(0.15) + keyword(0.10) + label_overlap(0.15) + feedback(0.20)
+# semantic-emb(0.35) + spacy-sem(0.30) + entity_align(0.20) + noun_chunk(0.25)
+# + alias(0.30+0.20) + keyword(0.35) + label_overlap(0.15) + feedback(0.20)
+_MAX_RAW_SCORE = 2.35
 _EXT_TO_MIME = {
     "pdf": "application/pdf",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -75,6 +82,21 @@ _MIME_TO_EXT = {
 
 def _norm(text: str) -> str:
     return " ".join((text or "").strip().lower().split())
+
+
+def _cosine(a: Any, b: Any) -> float:
+    """Cosine similarity for embedding lists. Never raises."""
+    try:
+        xs = list(a or [])
+        ys = list(b or [])
+        if not xs or not ys or len(xs) != len(ys):
+            return 0.0
+        dot = sum(x * y for x, y in zip(xs, ys))
+        na = math.sqrt(sum(x * x for x in xs)) or 1.0
+        nb = math.sqrt(sum(y * y for y in ys)) or 1.0
+        return max(0.0, min(dot / (na * nb), 1.0))
+    except (ValueError, TypeError):
+        return 0.0
 
 
 FIELD_CONSTRAINT_MAP = {
@@ -281,6 +303,36 @@ class TaggingEngine:
         except Exception:
             return 0.0
 
+    def _embed_texts(self, texts: List[str]) -> List[List[float]]:
+        """Offline embedding via indexing.embeddings. Hash backend pinned.
+
+        Hash is deterministic, stdlib-only, and fast enough to run per doc.
+        Flip backend to "bge" once ops installs sentence-transformers AND
+        embeddings.embed_texts caches the model (today it reloads per call).
+        Never raises.
+        """
+        try:
+            from indexing.embeddings import embed_texts
+
+            return embed_texts(list(texts or []), backend="hash")
+        except Exception:
+            return []
+
+    def _embed_one(self, text: str) -> List[float]:
+        vecs = self._embed_texts([(text or "")[:4000]])
+        return vecs[0] if vecs else []
+
+    def _label_emb_vector(self, label: str, aliases: List[str], keywords: List[str]) -> List[float]:
+        cache_key = f"emb:{label}"
+        if cache_key not in self._label_vector_cache:
+            sem_text = (
+                f"{label}. Related terms: {', '.join(aliases or [])}. "
+                f"Keywords: {', '.join(keywords or [])}."
+            )
+            self._label_vector_cache[cache_key] = self._embed_one(sem_text)
+        vec = self._label_vector_cache[cache_key]
+        return vec if isinstance(vec, list) else []
+
     def _score_field(
         self,
         *,
@@ -291,6 +343,7 @@ class TaggingEngine:
         file_context: str,
         tokens: Set[str],
         spacy_doc: Any = None,
+        doc_vector: Any = None,
     ) -> FieldConfidence:
         candidates: Dict[str, Dict[str, Any]] = {}
         for row in rows:
@@ -306,7 +359,17 @@ class TaggingEngine:
 
         has_spacy = self._spacy_nlp is not None and spacy_doc is not None
 
-        # ===== PRIMARY SIGNAL: spaCy Rich Semantic Similarity (Fix #8A) =====
+        # ===== PRIMARY SIGNAL: embedding cosine (works with zero models) =====
+        if doc_vector:
+            for row in rows:
+                if not row.active or row.label not in candidates:
+                    continue
+                sim = _cosine(doc_vector, self._label_emb_vector(row.label, row.aliases, row.keywords))
+                if sim > 0:
+                    candidates[row.label]["score"] += 0.35 * sim
+                    candidates[row.label]["reasons"].append(f"emb:{sim:.2f}")
+
+        # ===== SECONDARY SIGNAL: spaCy vector similarity (only when a model with vectors is installed) =====
         for row in rows:
             if not row.active or row.label not in candidates:
                 continue
@@ -1249,6 +1312,8 @@ class TaggingEngine:
 
         # Pre-compute spaCy doc ONCE for reuse across scoring + entity extraction
         spacy_doc = self._get_spacy_doc(full_text)
+        # Embedding vector ONCE per doc — the semantic signal needs no models
+        doc_vector = self._embed_one(full_text[:4000])
 
         # FOR ENTITY EXTRACTION: content-only text (NO file path/name)
         # Prevents file paths from being misidentified as PERSON/DATE/GPE/MONEY
@@ -1341,6 +1406,7 @@ class TaggingEngine:
                     file_context=file_context,
                     tokens=tokens,
                     spacy_doc=spacy_doc,
+                    doc_vector=doc_vector,
                 )
                 score.source = "spacy_content_strict" if (not metadata_active and self._spacy_nlp is not None) else "model"
 
