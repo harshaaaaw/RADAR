@@ -853,6 +853,9 @@ def render_dashboard() -> None:
         }
         .src-tag-cite { color: #0b7a55; background: #d4fae8; border-color: rgba(11,122,85,0.18); }
         .ev-quote summary { cursor: pointer; color: #0f766e; font-size: 0.82rem; display: flex; align-items: center; gap: 0.3rem; }
+        .ev-prev { color: #4b5563; }
+        .answer-body ul { margin: 0.4rem 0; padding-left: 1.4rem; }
+        .answer-body li { margin-bottom: 0.2rem; }
         .ev-ico { font-size: 1rem; line-height: 1; color: #0f766e; }
         .ev-quote p {
             background: #fafafa; border: 1px solid rgba(16,24,40,0.05);

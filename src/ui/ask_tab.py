@@ -158,6 +158,13 @@ def _md_to_html(text: str) -> str:
                 out.append(f"<table><tr>{cells_h}</tr>{body}</table>")
                 i = j
                 continue
+            if line.strip().startswith("• "):
+                items: list[str] = []
+                while i < len(lines) and lines[i].strip().startswith("• "):
+                    items.append(f"<li>{_md_inline(lines[i].strip()[2:].strip())}</li>")
+                    i += 1
+                out.append(f"<ul>{''.join(items)}</ul>")
+                continue
             out.append(_md_inline(line))
             i += 1
         html = "<br>".join(out)
@@ -188,7 +195,7 @@ def render_cited_answer(answer: str, chunks: list) -> str:
             if 1 <= n <= len(chunks or []):
                 ch = chunks[n - 1] or {}
                 label = _page_label(ch if isinstance(ch, dict) else {})
-                return (f'<a href="#radar-src-{n}" title="{_html.escape(label)}" '
+                return (f'<a href="#radar-src-{n}" title="Source {n}: {_html.escape(label)}. Click to jump to it" '
                         f'class="cite-chip">[{n}]</a>')
             return ""
 
@@ -310,7 +317,10 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
                 tags = cats + deps
                 # Title is the content signal only (category). Department is
                 # metadata, shown as a pill, never jammed into the title.
+                # Pills that repeat the title word-for-word are dropped.
                 title = " · ".join(cats) if cats else (" · ".join(deps) if deps else disp)
+                title_parts = {p.strip().lower() for p in title.split("·")}
+                tags = [t for t in cats + deps if t.lower() not in title_parts]
                 file_line = (f"{disp}{page_bit}" if tags
                              else (page_bit.strip(" ·") or ""))
                 if times == 1:
@@ -322,6 +332,7 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
                 tag_html = "".join(
                     f'<span class="src-tag">{_html.escape(t)}</span>' for t in tags)
                 quote = clean_snippet(str(chd.get("text", "")), limit=180)
+                preview = clean_snippet(str(chd.get("text", "")), limit=90)
                 cards.append(
                     f'<div class="src-card" id="radar-src-{n}">'
                     f'<span class="src-num">{n}</span>'
@@ -330,7 +341,8 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
                     f'<span class="src-used">{_html.escape(used_txt)}</span></div>'
                     + (f'<div class="src-file">{_html.escape(file_line)}</div>' if file_line else "")
                     + (f'<div class="src-tags">{tag_html}</div>' if tag_html else "")
-                    + (f'<details class="ev-quote"><summary><span class="ev-ico">“</span>Lines used from this file</summary>'
+                    + (f'<details class="ev-quote"><summary title="Lines used from this file">'
+                       f'<span class="ev-ico">“</span><span class="ev-prev">{_html.escape(preview)}</span></summary>'
                        f'<p>{_html.escape(quote)}</p></details>' if quote else "")
                     + '</div></div>'
                 )
@@ -345,7 +357,7 @@ def verdict_to_markdown(verdict: dict[str, Any], query: str) -> str:
         cited_n = len(used) if chunks else 0
         foot = f'Checked {len(chunks)} file(s), {cited_n} cited · cost {fmt_cost(cost)}'
         if others > 0:
-            foot += f' · {others} more file{"s" if others != 1 else ""} below'
+            foot += f' · {others} more in the file list below'
         parts.append(f'<div class="answer-foot">{foot}</div>')
         parts.append("</div>")
         return "\n".join(parts)

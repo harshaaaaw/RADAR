@@ -74,6 +74,23 @@ def _split_sentences(text: str) -> list[str]:
         return [text] if text else []
 
 
+def _expand_list_markers(text: str) -> str:
+    """Turn inline OCR list markers into real bullet lines.
+
+    Scanned notices write options inline ("ways: + WITHIN 60 DAYS- File an
+    appeal") with no newlines. Split those into "• " lines so the card
+    renderer can show a proper list. Leaves hyphenated words ("net-30",
+    "well-known") alone: a split needs whitespace around the marker plus a
+    capital letter starting the next item. Never raises.
+    """
+    try:
+        t = re.sub(r"\s*\+\s*", "\n• ", text or "")
+        t = re.sub(r"(?<=[A-Z0-9])\s*-\s+(?=[A-Z])", "\n• ", t)
+        return t
+    except (ValueError, TypeError, AttributeError):
+        return text
+
+
 def _has_prose(text: str) -> bool:
     """True when the answer has plain sentences outside tables and headings."""
     try:
@@ -293,10 +310,14 @@ def extractive_answer(query: str, context: str, max_sentences: int = 3) -> str:
             if len(picked) >= max_sentences:
                 break
             clean = sent.rstrip(". ").strip()
+            clean = _expand_list_markers(clean)
             picked.append(f"{clean} [{num}]")
         # Join as separate sentences (period + space), never a bare space that
         # could fuse two unrelated clauses into one run-on.
-        return ". ".join(picked)[:1200]
+        out = ". ".join(picked)[:1200]
+        if out and not out.rstrip().endswith((".", "!", "?")):
+            out += "."
+        return out
     except (ValueError, TypeError, AttributeError):
         return ""
 
